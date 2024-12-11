@@ -13,11 +13,15 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0-3.final" />
-    <PackageReference Include="Microsoft.Extensions.AI" Version="9.0.0-preview.9.24556.5" />
+    <PackageReference Include="Microsoft.Extensions.AI" Version="9.0.1-preview.1.24570.5" />
     <PackageReference Include="OpenAI" Version="2.1.0-beta.2" />
     <PackageReference Include="System.ClientModel" Version="1.2.1" />
     <PackageReference Include="System.Linq.Async" Version="6.0.1" />
     <PackageReference Include="System.Net.ServerSentEvents" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="GenAITelemetryExtensions\" />
   </ItemGroup>
 
 </Project>

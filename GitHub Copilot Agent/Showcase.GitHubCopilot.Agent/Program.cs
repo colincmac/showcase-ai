@@ -12,11 +12,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-
-builder.Services.AddOpenApi();
 builder.Services.AddDistributedMemoryCache();
 
 builder.Services.AddOptions<GitHubCopilotAgentOptions>(GitHubCopilotAgentOptions.ConfigurationSection)
@@ -38,13 +33,12 @@ builder.Services.AddAuthorization(opt =>
 
 var app = builder.Build();
 
-app.MapDefaultEndpoints();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    //app.Use();
-    //app.UseSwaggerUI();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 else
 {
@@ -53,6 +47,8 @@ else
 }
 
 app.UseAuthorization();
+
+app.MapDefaultEndpoints();
 
 app.MapGet("/", () => Results.Ok("Ok"));
 

@@ -39,9 +39,14 @@ public partial class GitHubCopilotAgent : IChatClient
         return _innerClient.CompleteStreamingAsync(chatMessages, chatOptions, cancellationToken);
     }
 
-    public TService? GetService<TService>(object? key = null) where TService : class
+    public virtual object? GetService(Type serviceType, object? serviceKey = null)
     {
-        return key is null && this is TService service ? service : _innerClient.GetService<TService>(key);
+        ArgumentException.ThrowIfNullOrWhiteSpace(nameof(serviceType));
+
+        // If the key is non-null, we don't know what it means so pass through to the inner service.
+        return
+            serviceKey is null && serviceType.IsInstanceOfType(this) ? this :
+            _innerClient.GetService(serviceType, serviceKey);
     }
 
     private ChatOptions? OptionsWithTools(IList<ChatMessage> chatMessages, ChatOptions? options)

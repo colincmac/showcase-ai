@@ -1,39 +1,52 @@
 using Azure.AI.OpenAI;
 using Azure.Communication.CallAutomation;
-using Azure.Core;
 using Azure.Messaging;
 using Azure.Messaging.EventGrid;
 using Azure.Messaging.EventGrid.SystemEvents;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using OpenAI;
-using System.ClientModel;
 using System.ComponentModel.DataAnnotations;
-using System.Configuration;
 using Showcase.Shared.AIExtensions.Realtime;
 using Showcase.VoiceRagAgent;
 using OpenAI.RealtimeConversation;
 using Microsoft.Extensions.AI;
 using System.ComponentModel;
+using Microsoft.AspNetCore.Http.Connections;
+using Microsoft.Extensions.Options;
+
 var builder = WebApplication.CreateBuilder(args);
+//AppContext.SetSwitch("OpenAI.Experimental.EnableOpenTelemetry", true);
 
-//Get ACS Connection String from appsettings.json
-var acsConnectionString = builder.Configuration.GetValue<string>("AcsConnectionString");
-var openAIKey = builder.Configuration.GetValue<string>("AzureOpenAIServiceKey");
-var openAIEndpoint = builder.Configuration.GetValue<string>("AzureOpenAIServiceEndpoint");
-var openAIDeploymentName = builder.Configuration.GetValue<string>("AzureOpenAIDeploymentModelName");
-var configuredSystemPrompt = builder.Configuration.GetValue<string>("AzureOpenAISystemPrompt");
+builder.AddServiceDefaults();
 
-ArgumentException.ThrowIfNullOrEmpty(acsConnectionString);
-ArgumentException.ThrowIfNullOrEmpty(openAIKey);
-ArgumentException.ThrowIfNullOrEmpty(openAIEndpoint);
-ArgumentException.ThrowIfNullOrEmpty(openAIDeploymentName);
+builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddSingleton(new CallAutomationClient(connectionString: acsConnectionString));
-builder.Services.AddSingleton(new AzureOpenAIClient(endpoint: new (openAIEndpoint), credential: new ApiKeyCredential(openAIKey)));
-builder.Services.AddSignalR();
+builder.AddAzureOpenAIClient("openai");
+
+builder.Services.Configure<VoiceRagOptions>(
+    builder.Configuration.GetSection(VoiceRagOptions.SectionName));
+
+builder.Services.AddSingleton(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<VoiceRagOptions>>().Value;
+    return new CallAutomationClient(connectionString: options.AcsConnectionString);
+});
 
 var app = builder.Build();
+
+
+app.MapDefaultEndpoints();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+else
+{
+    app.UseHttpsRedirection();
+}
 
 var appBaseUrl = Environment.GetEnvironmentVariable("VS_TUNNEL_URL")?.TrimEnd('/');
 
@@ -101,7 +114,7 @@ app.MapPost("/api/incomingCall", async (
 });
 
 // api to handle call back events
-app.MapPost("/api/callbacks/{contextId}", async (
+app.MapPost("/api/callbacks/{contextId}", (
     [FromBody] CloudEvent[] cloudEvents,
     [FromRoute] string contextId,
     [Required] string callerId,
@@ -118,61 +131,48 @@ app.MapPost("/api/callbacks/{contextId}", async (
 });
 
 app.UseWebSockets();
+
 #pragma warning disable OPENAI002
-app.Use(async (context, next) =>
+app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configurationOptions, AzureOpenAIClient openAIClient, ILogger<OpenAIVoiceClient> voiceClientLogger, ILogger<AcsAIOutboundHandler> acsOutboundHandlerLogger) =>
 {
-    if (context.Request.Path == "/ws")
+    if (context.WebSockets.IsWebSocketRequest)
     {
-        if (context.WebSockets.IsWebSocketRequest)
+        try
         {
-            try
-            {
-                var voiceClient = context.RequestServices.GetRequiredService<AzureOpenAIClient>()
-                .AsVoiceClient(openAIDeploymentName, context.RequestServices.GetRequiredService<ILogger<OpenAIVoiceClient>>());
+            var config = configurationOptions.Value;
 
-                //const string systemPrompt = """ 
-                //    You're an AI assistant for an elevator company called Contoso Elevators. Customers will contact you as the first point of contact when having issues with their elevators. 
-                //    Your priority is to ensure the person contacting you or anyone else in or around the elevator is safe, if not then they should contact their local authorities.
-                //    If everyone is safe then ask the user for information about the elevators location, such as city, building and elevator number.
-                //    Also get the users name and number so that a technician who goes onsite can contact this person. Confirm with the user all the information 
-                //    they've shared that it's all correct and then let them know that you've created a ticket and that a technician should be onsite within the next 24 to 48 hours.
-                //    """;
-                var systemPrompt = configuredSystemPrompt ??  "You help with booking appointments";
-                IList<AITool> tools = new List<AITool>() { AIFunctionFactory.Create(GetRoomCapacity) };
+            var voiceClient = openAIClient.AsVoiceClient(config.AzureOpenAIDeploymentModelName, voiceClientLogger);
 
-                RealtimeSessionOptions options = new ()
-                {
-                    Instructions = systemPrompt,
-                    Voice = ConversationVoice.Shimmer,
-                    InputAudioFormat = ConversationAudioFormat.Pcm16,
-                    OutputAudioFormat = ConversationAudioFormat.Pcm16,
-                    Tools = tools,
-                    //InputTranscriptionOptions = new()
-                    //{
-                    //// OpenAI realtime excepts raw audio in/out and uses another model for transcriptions in parallel
-                    //// Currently, it only supports whisper v2 (named whisper-1) for transcription 
-                    //// Note, this means that the transcription will be done by a different model than the one generating the response, which may lead to differences between the audio and transcription
-                    //    Model = "whisper-1", 
-                    //},
-                    TurnDetectionOptions = ConversationTurnDetectionOptions.CreateServerVoiceActivityTurnDetectionOptions(0.5f, TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500)),
-                };
-                var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-                
-                await voiceClient.StartConversationAsync(new AcsAIOutboundHandler(webSocket, logger: context.RequestServices.GetRequiredService<ILogger<AcsAIOutboundHandler>>()), options, cancellationToken: context.RequestAborted);
-            }
-            catch (Exception ex)
+            IList<AITool> tools = [AIFunctionFactory.Create(GetRoomCapacity)];
+
+            RealtimeSessionOptions sessionOptions = new()
             {
-                Console.WriteLine($"Exception received {ex}");
-            }
+                Instructions = config.AzureOpenAISystemPrompt,
+                Voice = ConversationVoice.Shimmer,
+                InputAudioFormat = ConversationAudioFormat.Pcm16,
+                OutputAudioFormat = ConversationAudioFormat.Pcm16,
+                Tools = tools,
+                //InputTranscriptionOptions = new()
+                //{
+                //// OpenAI realtime excepts raw audio in/out and uses another model for transcriptions in parallel
+                //// Currently, it only supports whisper v2 (named whisper-1) for transcription 
+                //// Note, this means that the transcription will be done by a different model than the one generating the response, which may lead to differences between the audio and transcription
+                //    Model = "whisper-1", 
+                //},
+                TurnDetectionOptions = ConversationTurnDetectionOptions.CreateServerVoiceActivityTurnDetectionOptions(0.5f, TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500)),
+            };
+            var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+
+            await voiceClient.StartConversationAsync(new AcsAIOutboundHandler(webSocket, logger: acsOutboundHandlerLogger), sessionOptions, cancellationToken: context.RequestAborted);
         }
-        else
+        catch (Exception ex)
         {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            Console.WriteLine($"Exception received {ex}");
         }
     }
     else
     {
-        await next(context);
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
     }
 });
 

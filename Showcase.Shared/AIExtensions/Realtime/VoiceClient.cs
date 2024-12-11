@@ -1,6 +1,7 @@
 ﻿using Azure.AI.OpenAI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using OpenAI.Chat;
 using OpenAI.RealtimeConversation;
 using Showcase.Shared.AIExtensions.Realtime.AudioDataProvider;
 using System;
@@ -9,9 +10,9 @@ using System.ClientModel.Primitives;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net.WebSockets;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Channels;
-using static System.Collections.Specialized.BitVector32;
 
 namespace Showcase.Shared.AIExtensions.Realtime;
 
@@ -27,6 +28,10 @@ public class OpenAIVoiceClient : IVoiceClient
     private readonly ConcurrentDictionary<Type, List<Func<IOutputWebSocket, ConversationUpdate, Task>>> _eventHandlers
         = new ();
 
+    private static readonly Uri _defaultOpenAIEndpoint = new("https://api.openai.com/v1");
+
+    public ChatClientMetadata Metadata { get; }
+
     public OpenAIVoiceClient(AzureOpenAIClient aiClient, string modelId, ILogger logger)
     {
         _aiClient = aiClient.GetRealtimeConversationClient(modelId);
@@ -35,7 +40,13 @@ public class OpenAIVoiceClient : IVoiceClient
         {
             SingleReader = true,
         });
-       
+        Uri providerUrl = typeof(AzureOpenAIClient).GetField("_endpoint", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+            ?.GetValue(aiClient) as Uri ?? _defaultOpenAIEndpoint;
+
+        string? model = typeof(AzureOpenAIClient).GetField("_model", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+            ?.GetValue(aiClient) as string;
+
+        Metadata = new("openai", providerUrl, model);
     }
 
     /// <summary>
@@ -58,7 +69,7 @@ public class OpenAIVoiceClient : IVoiceClient
         };
 
         // Add the wrapped handler to the list for the specific type
-        var handlers = _eventHandlers.GetOrAdd(typeof(T), _ => new List<Func<IOutputWebSocket, ConversationUpdate, Task>>());
+        var handlers = _eventHandlers.GetOrAdd(typeof(T), _ => []);
         lock (handlers) // Ensure thread-safe addition
         {
             handlers.Add(wrappedHandler);
@@ -67,10 +78,16 @@ public class OpenAIVoiceClient : IVoiceClient
         return this;
     }
 
+
+
     public async Task StartConversationAsync(IOutputWebSocket output, RealtimeSessionOptions sessionOptions, CancellationToken cancellationToken = default)
     {
         CancellationTokenSource cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
         var aiSession = await _aiClient.StartConversationSessionAsync(cancellationToken).ConfigureAwait(false);
+
+        // Add default handlers for ConversationUpdate types
+        OnConversationUpdate<ConversationResponseFinishedUpdate>((_, update) => OnConversationResponseFinishedUpdate(output, update));
+
         var options = ToOpenAIConversationSessionOptions(sessionOptions);
         await aiSession.ConfigureSessionAsync(options, cancellationToken).ConfigureAwait(false);
 
@@ -204,6 +221,14 @@ public class OpenAIVoiceClient : IVoiceClient
             result.Tools.Add(tool);
         }
         return result;
+    }
+
+    // Default Handlers
+
+    // Conversation response is done. Always emitted, no matter the final state
+    private Task OnConversationResponseFinishedUpdate(IOutputWebSocket output, ConversationResponseFinishedUpdate update)
+    {
+        return Task.CompletedTask;
     }
 
     public async ValueTask DisposeAsync()

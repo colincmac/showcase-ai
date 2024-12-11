@@ -30,6 +30,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "FsiDemo", "FsiDemo", "{5DD5
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "M365 Integration", "M365 Integration", "{A74ACAF0-AE09-46E5-B3D7-52E0FB5771A0}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GraphRAG", "GraphRAG", "{6D6266EC-00F3-4766-95A5-E0470CDEAE6F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -60,10 +62,6 @@ Global
 		{1F9945D1-807F-4FF8-B261-00B4E68B3C87}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1F9945D1-807F-4FF8-B261-00B4E68B3C87}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1F9945D1-807F-4FF8-B261-00B4E68B3C87}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D0FBBDAB-72A6-4DE1-9ECA-D2DCD6246978}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D0FBBDAB-72A6-4DE1-9ECA-D2DCD6246978}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D0FBBDAB-72A6-4DE1-9ECA-D2DCD6246978}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D0FBBDAB-72A6-4DE1-9ECA-D2DCD6246978}.Release|Any CPU.Build.0 = Release|Any CPU
 		{661FBECB-C56D-418F-9718-5AF5F7D0540B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{661FBECB-C56D-418F-9718-5AF5F7D0540B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{661FBECB-C56D-418F-9718-5AF5F7D0540B}.Release|Any CPU.ActiveCfg = Release|Any CPU

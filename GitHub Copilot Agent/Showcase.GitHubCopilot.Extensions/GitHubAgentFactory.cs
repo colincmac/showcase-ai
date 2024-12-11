@@ -27,11 +27,11 @@ public class GitHubAgentFactory : IGitHubAgentFactory
     {
         var completionsClient = new OpenAIClient(new(accessToken), new() { Endpoint = new(_options.ApiEndpoint) })
             .AsChatClient(_options.ModelId);
-        var innerClient = new ChatClientBuilder(_serviceProvider)
+        var innerClient = new ChatClientBuilder(completionsClient)
             .UseDistributedCache()
             .UseLogging()
             .UseFunctionInvocation()
-            .Use(completionsClient);
+            .Build();
         return new GitHubCopilotAgent(innerClient, _aiToolRegistry);
     }
 }
