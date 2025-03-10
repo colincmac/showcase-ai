@@ -1,0 +1,6 @@
+@SecEdgarAgent_HostAddress = http://localhost:5048
+
+GET {{SecEdgarAgent_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

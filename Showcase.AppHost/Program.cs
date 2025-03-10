@@ -19,6 +19,7 @@ builder.AddOpenTelemetryCollector("otelcollector", "../otelcollector/config.yaml
        .WithEnvironment("PROMETHEUS_ENDPOINT", $"{prometheus.GetEndpoint("http")}/api/v1/otlp");
 
 //var cache = builder.AddRedis("cache");
+
 var openai = builder.ExecutionContext.IsPublishMode
     ? builder.AddAzureOpenAI("openai")
     : builder.AddConnectionString("openai");
@@ -31,10 +32,12 @@ var pythonPlugins = builder.AddPythonApp(
     virtualEnvironmentPath: "env",
     scriptArgs: ["uvicorn", "main:app"])
        .WithEndpoint(targetPort: 62394, scheme: "http", env: "UVICORN_PORT");
+
 if (builder.ExecutionContext.IsRunMode && builder.Environment.IsDevelopment())
 {
     pythonPlugins.WithEnvironment("DEBUG", "True");
 }
+
 #pragma warning restore ASPIREHOSTINGPYTHON001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
 var gitHubAgent = builder.AddProject<Projects.Showcase_GitHubCopilot_Agent>("GitHubAgent")
@@ -44,6 +47,336 @@ var gitHubAgent = builder.AddProject<Projects.Showcase_GitHubCopilot_Agent>("Git
 var voiceRagAgent = builder.AddProject<Projects.Showcase_VoiceRagAgent>("VoiceRagAgent")
     .WithReference(openai)
     .WithEnvironment("OPENAI_EXPERIMENTAL_ENABLE_OPEN_TELEMETRY", "true");
+
+//builder.AddProject<Projects.SecEdgarAgent>("secedgaragent")
+//    .WithReference(openai)
+//    .WithEnvironment("OPENAI_EXPERIMENTAL_ENABLE_OPEN_TELEMETRY", "true");
+
+//builder.AddProject<Projects.Showcase_OcelotGateway>("showcase-ocelotgateway")
+//    .WithReference(gitHubAgent)
+//    .WithReference(pythonPlugins);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+//builder.AddProject<Projects.Showcase_GitHubCopilot_TubAgent>("showcase-githubcopilot-tubagent");
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+//builder.AddProject<Projects.SecEdgarAgent>("secedgaragent")
+//    .WithReference(openai)
+//    .WithEnvironment("OPENAI_EXPERIMENTAL_ENABLE_OPEN_TELEMETRY", "true");
+
+//builder.AddProject<Projects.Showcase_OcelotGateway>("showcase-ocelotgateway")
+//    .WithReference(gitHubAgent)
+//    .WithReference(pythonPlugins);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+//builder.AddProject<Projects.Showcase_GitHubCopilot_TubAgent>("showcase-githubcopilot-tubagent");
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+builder.AddProject<Projects.Showcase_VoiceOrchestrator>("showcase-voiceorchestrator");
+
+//builder.AddProject<Projects.SecEdgarAgent>("secedgaragent")
+//    .WithReference(openai)
+//    .WithEnvironment("OPENAI_EXPERIMENTAL_ENABLE_OPEN_TELEMETRY", "true");
+
+//builder.AddProject<Projects.Showcase_OcelotGateway>("showcase-ocelotgateway")
+//    .WithReference(gitHubAgent)
+//    .WithReference(pythonPlugins);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+//builder.AddProject<Projects.Showcase_GitHubCopilot_TubAgent>("showcase-githubcopilot-tubagent");
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+//builder.AddProject<Projects.SecEdgarAgent>("secedgaragent")
+//    .WithReference(openai)
+//    .WithEnvironment("OPENAI_EXPERIMENTAL_ENABLE_OPEN_TELEMETRY", "true");
+
+//builder.AddProject<Projects.Showcase_OcelotGateway>("showcase-ocelotgateway")
+//    .WithReference(gitHubAgent)
+//    .WithReference(pythonPlugins);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+//builder.AddProject<Projects.Showcase_GitHubCopilot_TubAgent>("showcase-githubcopilot-tubagent");
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
+
+
+//var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
+//    .WithReference(openai)
+//    .WithReference(pythonPlugins);
+
+//builder.AddProject<Projects.Showcase_Web>("WebFrontend")
+//    .WithExternalHttpEndpoints()
+//    .WithReference(apiService);
+
 
 //var apiService = builder.AddProject<Projects.Showcase_ApiService>("ApiService")
 //    .WithReference(openai)

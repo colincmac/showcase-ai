@@ -11,8 +11,8 @@ using Showcase.VoiceRagAgent;
 using OpenAI.RealtimeConversation;
 using Microsoft.Extensions.AI;
 using System.ComponentModel;
-using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.Extensions.Options;
+using Azure.Communication;
 
 var builder = WebApplication.CreateBuilder(args);
 //AppContext.SetSwitch("OpenAI.Experimental.EnableOpenTelemetry", true);
@@ -25,6 +25,13 @@ builder.AddAzureOpenAIClient("openai");
 
 builder.Services.Configure<VoiceRagOptions>(
     builder.Configuration.GetSection(VoiceRagOptions.SectionName));
+
+var teamsAppId = builder.Configuration.GetValue<string>("TeamsAppId");
+var teamsAppIdentifier = new MicrosoftTeamsAppIdentifier(teamsAppId);
+
+CallAutomationClientOptions callautomationclientoptions = new CallAutomationClientOptions()
+{
+};
 
 builder.Services.AddSingleton(sp =>
 {

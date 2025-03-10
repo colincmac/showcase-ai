@@ -11,9 +11,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Gateway\Showecase.OcelotGateway\Showcase.OcelotGateway.csproj" />
     <ProjectReference Include="..\GitHub Copilot Agent\Showcase.GitHubCopilot.Agent\Showcase.GitHubCopilot.Agent.csproj" />
+    <ProjectReference Include="..\GitHub Copilot Agent\Showcase.GitHubCopilot.TubAgent\Showcase.GitHubCopilot.TubAgent.csproj" />
+    <ProjectReference Include="..\SecEdgarAgent\SecEdgarAgent.csproj" />
     <ProjectReference Include="..\Showcase.ApiService\Showcase.ApiService.csproj" />
     <ProjectReference Include="..\Showcase.Web\Showcase.Web.csproj" />
+    <ProjectReference Include="..\VoiceOrchestration\Showcase.VoiceOrchestrator\Showcase.VoiceOrchestrator.csproj" />
     <ProjectReference Include="..\VoiceRAG\Agent\Showcase.VoiceRagAgent.csproj" />
   </ItemGroup>
 
