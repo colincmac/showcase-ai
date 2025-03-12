@@ -27,7 +27,7 @@ var openai = builder.ExecutionContext.IsPublishMode
 #pragma warning disable ASPIREHOSTINGPYTHON001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 var pythonPlugins = builder.AddPythonApp(
     name: "python-plugins",
-        appDirectory: Path.Combine("..", "Python.Plugins"),
+    projectDirectory: Path.Combine("..", "Python.Plugins"),
     scriptPath: "-m",
     virtualEnvironmentPath: "env",
     scriptArgs: ["uvicorn", "main:app"])

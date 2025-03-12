@@ -1,149 +1,148 @@
-﻿//using Microsoft.Extensions.AI;
-//using OpenAI.RealtimeConversation;
-//using System.Reflection;
-//using System.Text.Json;
-//using System.Text.Json.Serialization.Metadata;
+﻿using Microsoft.Extensions.AI;
+using OpenAI.RealtimeConversation;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
-//namespace Showcase.Shared.AIExtensions.Realtime;
-///// <summary>
-///// Provides extension methods for working with <see cref="RealtimeConversationSession"/> and related types.
-///// </summary>
+namespace Showcase.Shared.AIExtensions.Realtime;
+/// <summary>
+/// Provides extension methods for working with <see cref="RealtimeConversationSession"/> and related types.
+/// </summary>
 
-//#pragma warning disable OPENAI002 // Type is for evaluation purposes only and is subject to change or removal in future updates.
-//public static class OpenAIRealtimeExtensions
-//{
-//    private static readonly JsonElement _defaultParameterSchema = JsonDocument.Parse("{}").RootElement;
+#pragma warning disable OPENAI002 // Type is for evaluation purposes only and is subject to change or removal in future updates.
+public static class OpenAIRealtimeExtensions
+{
+    private static readonly JsonElement _defaultParameterSchema = JsonDocument.Parse("{}").RootElement;
 
-//    ///// <summary>
-//    ///// Converts a <see cref="AIFunction"/> into a <see cref="ConversationFunctionTool"/> so that
-//    ///// it can be used with <see cref="RealtimeConversationClient"/>.
-//    ///// </summary>
-//    ///// <returns>A <see cref="ConversationFunctionTool"/> that can be used with <see cref="RealtimeConversationClient"/>.</returns>
-//    //public static ConversationFunctionTool ToConversationFunctionTool(this AIFunction aiFunction)
-//    //{
-//    //    // https://github.com/dotnet/extensions/pull/5886
-//    //    var parametersSchema = new ConversationFunctionToolParametersSchema
-//    //    {
-//    //        Type = "object",
-//    //        Properties = aiFunction.UnderlyingMethod?.GetParameters()
-//    //            .ToDictionary(p => p.Name!, GetParameterSchema),
-//    //        Required = aiFunction.UnderlyingMethod?.GetParameters()
-//    //            .Where(p => !p.IsOptional)
-//    //            .Select(p => p.Name!),
-//    //    };
+    /// <summary>
+    /// Converts a <see cref="AIFunction"/> into a <see cref="ConversationFunctionTool"/> so that
+    /// it can be used with <see cref="RealtimeConversationClient"/>.
+    /// </summary>
+    /// <returns>A <see cref="ConversationFunctionTool"/> that can be used with <see cref="RealtimeConversationClient"/>.</returns>
+    public static ConversationFunctionTool ToConversationFunctionTool(this AIFunction aiFunction)
+    {
 
-//    //    return new ConversationFunctionTool
-//    //    {
-//    //        Name = aiFunction.Name,
-//    //        Description = aiFunction.Description,
-//    //        Parameters = new BinaryData(JsonSerializer.SerializeToUtf8Bytes(
-//    //            parametersSchema, OpenAIJsonContext.Default.ConversationFunctionToolParametersSchema))
-//    //    };
-//    //}
+        var parametersSchema = new ConversationFunctionToolParametersSchema
+        {
+            Type = "object",
+            Properties = aiFunction.Metadata.Parameters
+                .ToDictionary(p => p.Name, GetParameterSchema),
+            Required = aiFunction.Metadata.Parameters
+                .Where(p => p.IsRequired)
+                .Select(p => p.Name),
+        };
 
-//    /// <summary>
-//    /// Handles tool calls.
-//    ///
-//    /// If the <paramref name="update"/> represents a tool call, calls the corresponding tool and
-//    /// adds the result to the <paramref name="session"/>.
-//    ///
-//    /// If the <paramref name="update"/> represents the end of a response, checks if this was due
-//    /// to a tool call and if so, instructs the <paramref name="session"/> to begin responding to it.
-//    /// </summary>
-//    /// <param name="session">The <see cref="RealtimeConversationSession"/>.</param>
-//    /// <param name="update">The <see cref="ConversationUpdate"/> being processed.</param>
-//    /// <param name="tools">The available tools.</param>
-//    /// <param name="detailedErrors">An optional flag specifying whether to disclose detailed exception information to the model. The default value is <see langword="false"/>.</param>
-//    /// <param name="jsonSerializerOptions">An optional <see cref="JsonSerializerOptions"/> that controls JSON handling.</param>
-//    /// <param name="cancellationToken">An optional <see cref="CancellationToken"/>.</param>
-//    /// <returns>A <see cref="Task"/> that represents the completion of processing, including invoking any asynchronous tools.</returns>
-//    public static async Task HandleToolCallsAsync(
-//        this RealtimeConversationSession session,
-//        ConversationUpdate update,
-//        IReadOnlyList<AIFunction> tools,
-//        bool? detailedErrors = false,
-//        JsonSerializerOptions? jsonSerializerOptions = null,
-//        CancellationToken cancellationToken = default)
-//    {
+        return new ConversationFunctionTool
+        {
+            Name = aiFunction.Metadata.Name,
+            Description = aiFunction.Metadata.Description,
+            Parameters = new BinaryData(JsonSerializer.SerializeToUtf8Bytes(
+                parametersSchema, OpenAIJsonContext.Default.ConversationFunctionToolParametersSchema))
+        };
+    }
 
-//        // ConversationItemStreamingFinishedUpdate finished updates arrive when all streamed data for an item has arrived and the
-//        // accumulated results are available. In the case of function calls, this is the point
-//        // where all arguments are expected to be present.
-//        if (update is ConversationItemStreamingFinishedUpdate itemFinished)
-//        {
-//            // If we need to call a tool to update the model, do so
-//            if (!string.IsNullOrEmpty(itemFinished.FunctionName)
-//                && await itemFinished.GetFunctionCallOutputAsync(tools, detailedErrors, jsonSerializerOptions, cancellationToken).ConfigureAwait(false) is { } output)
-//            {
-//                await session.AddItemAsync(output, cancellationToken).ConfigureAwait(false);
-//            }
-//        }
-//        else if (update is ConversationResponseFinishedUpdate responseFinished)
-//        {
-//            // If we added one or more function call results, instruct the model to respond to them
-//            if (responseFinished.CreatedItems.Any(item => !string.IsNullOrEmpty(item.FunctionName)))
-//            {
-//                await session!.StartResponseAsync(cancellationToken).ConfigureAwait(false);
-//            }
-//        }
-//    }
+    /// <summary>
+    /// Handles tool calls.
+    ///
+    /// If the <paramref name="update"/> represents a tool call, calls the corresponding tool and
+    /// adds the result to the <paramref name="session"/>.
+    ///
+    /// If the <paramref name="update"/> represents the end of a response, checks if this was due
+    /// to a tool call and if so, instructs the <paramref name="session"/> to begin responding to it.
+    /// </summary>
+    /// <param name="session">The <see cref="RealtimeConversationSession"/>.</param>
+    /// <param name="update">The <see cref="ConversationUpdate"/> being processed.</param>
+    /// <param name="tools">The available tools.</param>
+    /// <param name="detailedErrors">An optional flag specifying whether to disclose detailed exception information to the model. The default value is <see langword="false"/>.</param>
+    /// <param name="jsonSerializerOptions">An optional <see cref="JsonSerializerOptions"/> that controls JSON handling.</param>
+    /// <param name="cancellationToken">An optional <see cref="CancellationToken"/>.</param>
+    /// <returns>A <see cref="Task"/> that represents the completion of processing, including invoking any asynchronous tools.</returns>
+    public static async Task HandleToolCallsAsync(
+        this RealtimeConversationSession session,
+        ConversationUpdate update,
+        IReadOnlyList<AIFunction> tools,
+        bool? detailedErrors = false,
+        JsonSerializerOptions? jsonSerializerOptions = null,
+        CancellationToken cancellationToken = default)
+    {
 
-//    private static JsonElement GetParameterSchema(ParameterInfo parameterMetadata)
-//    {
-//        return parameterMetadata switch
-//        {
-//            { Schema: JsonElement jsonElement } => jsonElement,
-//            _ => _defaultParameterSchema,
-//        };
-//    }
+        // ConversationItemStreamingFinishedUpdate finished updates arrive when all streamed data for an item has arrived and the
+        // accumulated results are available. In the case of function calls, this is the point
+        // where all arguments are expected to be present.
+        if (update is ConversationItemStreamingFinishedUpdate itemFinished)
+        {
+            // If we need to call a tool to update the model, do so
+            if (!string.IsNullOrEmpty(itemFinished.FunctionName)
+                && await itemFinished.GetFunctionCallOutputAsync(tools, detailedErrors, jsonSerializerOptions, cancellationToken).ConfigureAwait(false) is { } output)
+            {
+                await session.AddItemAsync(output, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        else if (update is ConversationResponseFinishedUpdate responseFinished)
+        {
+            // If we added one or more function call results, instruct the model to respond to them
+            if (responseFinished.CreatedItems.Any(item => !string.IsNullOrEmpty(item.FunctionName)))
+            {
+                await session!.StartResponseAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
 
-//    private static async Task<ConversationItem?> GetFunctionCallOutputAsync(
-//        this ConversationItemStreamingFinishedUpdate update,
-//        IReadOnlyList<AIFunction> tools,
-//        bool? detailedErrors = false,
-//        JsonSerializerOptions? jsonSerializerOptions = null,
-//        CancellationToken cancellationToken = default)
-//    {
-//        if (!string.IsNullOrEmpty(update.FunctionName)
-//            && tools.FirstOrDefault(t => t.Name == update.FunctionName) is AIFunction aiFunction)
-//        {
-//            var jsonOptions = jsonSerializerOptions ?? AIJsonUtilities.DefaultOptions;
+    private static JsonElement GetParameterSchema(AIFunctionParameterMetadata parameterMetadata)
+    {
+        return parameterMetadata switch
+        {
+            { Schema: JsonElement jsonElement } => jsonElement,
+            _ => _defaultParameterSchema,
+        };
+    }
 
-//            var functionCallContent = FunctionCallContent.CreateFromParsedArguments(
-//                update.FunctionCallArguments, update.FunctionCallId, update.FunctionName,
-//                    argumentParser: json => JsonSerializer.Deserialize(json,
-//                    (JsonTypeInfo<IDictionary<string, object>>)jsonOptions.GetTypeInfo(typeof(IDictionary<string, object>)))!);
+    private static async Task<ConversationItem?> GetFunctionCallOutputAsync(
+        this ConversationItemStreamingFinishedUpdate update,
+        IReadOnlyList<AIFunction> tools,
+        bool? detailedErrors = false,
+        JsonSerializerOptions? jsonSerializerOptions = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!string.IsNullOrEmpty(update.FunctionName)
+            && tools.FirstOrDefault(t => t.Metadata.Name == update.FunctionName) is AIFunction aiFunction)
+        {
+            var jsonOptions = jsonSerializerOptions ?? AIJsonUtilities.DefaultOptions;
 
-//            try
-//            {
-//                var result = await aiFunction.InvokeAsync(functionCallContent.Arguments, cancellationToken).ConfigureAwait(false);
-//                var resultJson = JsonSerializer.Serialize(result, jsonOptions.GetTypeInfo(typeof(object)));
-//                return ConversationItem.CreateFunctionCallOutput(update.FunctionCallId, resultJson);
-//            }
-//            catch (JsonException)
-//            {
-//                return ConversationItem.CreateFunctionCallOutput(update.FunctionCallId, "Invalid JSON");
-//            }
-//            catch (Exception e) when (!cancellationToken.IsCancellationRequested)
-//            {
-//                var message = "Error calling tool";
+            var functionCallContent = FunctionCallContent.CreateFromParsedArguments(
+                update.FunctionCallArguments, update.FunctionCallId, update.FunctionName,
+                    argumentParser: json => JsonSerializer.Deserialize(json,
+                    (JsonTypeInfo<IDictionary<string, object>>)jsonOptions.GetTypeInfo(typeof(IDictionary<string, object>)))!);
 
-//                if (detailedErrors == true)
-//                {
-//                    message += $": {e.Message}";
-//                }
+            try
+            {
+                var result = await aiFunction.InvokeAsync(functionCallContent.Arguments, cancellationToken).ConfigureAwait(false);
+                var resultJson = JsonSerializer.Serialize(result, jsonOptions.GetTypeInfo(typeof(object)));
+                return ConversationItem.CreateFunctionCallOutput(update.FunctionCallId, resultJson);
+            }
+            catch (JsonException)
+            {
+                return ConversationItem.CreateFunctionCallOutput(update.FunctionCallId, "Invalid JSON");
+            }
+            catch (Exception e) when (!cancellationToken.IsCancellationRequested)
+            {
+                var message = "Error calling tool";
 
-//                return ConversationItem.CreateFunctionCallOutput(update.FunctionCallId, message);
-//            }
-//        }
+                if (detailedErrors == true)
+                {
+                    message += $": {e.Message}";
+                }
 
-//        return null;
-//    }
+                return ConversationItem.CreateFunctionCallOutput(update.FunctionCallId, message);
+            }
+        }
 
-//    internal sealed class ConversationFunctionToolParametersSchema
-//    {
-//        public string? Type { get; set; }
-//        public IDictionary<string, JsonElement>? Properties { get; set; }
-//        public IEnumerable<string>? Required { get; set; }
-//    }
-//}
+        return null;
+    }
+
+    internal sealed class ConversationFunctionToolParametersSchema
+    {
+        public string? Type { get; set; }
+        public IDictionary<string, JsonElement>? Properties { get; set; }
+        public IEnumerable<string>? Required { get; set; }
+    }
+}

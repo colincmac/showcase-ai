@@ -19,6 +19,11 @@ public record CopilotChatMessage(string Role, string Content, [property: JsonPro
     //}
 };
 
+public record StreamingCopilotCompletionUpdate([property: JsonIgnore] StreamingChatCompletionUpdate update)
+{
+
+};
+
 public record CopilotRequest([property: JsonPropertyName("copilot_thread_id")] string CopilotThreadId, CopilotChatMessage[] Messages);
 
 

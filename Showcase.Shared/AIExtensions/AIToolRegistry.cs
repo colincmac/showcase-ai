@@ -47,7 +47,7 @@ public class AIToolRegistry : IAIToolRegistry
 
     public void Add(AIFunction item)
     {
-        string name = item.Name;
+        string name = item.Metadata.Name;
 
         _tools.Add(name, item);
     }
@@ -68,7 +68,7 @@ public class AIToolRegistry : IAIToolRegistry
     public void CopyTo(AIFunction[] array, int arrayIndex) =>
         ((IDictionary<string, AIFunction>)_tools).Values.CopyTo(array, arrayIndex);
 
-    public bool Remove(AIFunction item) => _tools.Remove(item.Name);
+    public bool Remove(AIFunction item) => _tools.Remove(item.Metadata.Name);
 
     public IEnumerator<AIFunction> GetEnumerator() => _tools.Values.GetEnumerator();
 

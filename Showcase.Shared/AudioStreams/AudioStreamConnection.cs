@@ -45,27 +45,27 @@ public class AudioStreamConnection
     //}
 
 
-    //public AudioStreamData DecodeBuffer(byte[] buffer, int count)
-    //{
-    //    lock (_mainLock)
-    //    {
-    //        if (_streamIsComplete)
-    //        {
-    //            throw new InvalidOperationException("Stream is complete");
-    //        }
-    //        if (buffer.Length != _lastAudioStreamDataByteSize)
-    //        {
-    //            throw new ArgumentException($"Buffer length {buffer.Length} does not match expected length {_lastAudioStreamDataByteSize}");
-    //        }
-    //        var stringContent = Encoding.UTF8.GetString(buffer, 0, count);
+    public AudioStreamData DecodeBuffer(byte[] buffer, int count)
+    {
+        lock (_mainLock)
+        {
+            if (_streamIsComplete)
+            {
+                throw new InvalidOperationException("Stream is complete");
+            }
+            if (buffer.Length != _lastAudioStreamDataByteSize)
+            {
+                throw new ArgumentException($"Buffer length {buffer.Length} does not match expected length {_lastAudioStreamDataByteSize}");
+            }
+            var stringContent = Encoding.UTF8.GetString(buffer, 0, count);
 
-    //        var audio = JsonSerializer.Deserialize<AudioStreamData>(stringContent);
+            var audio = JsonSerializer.Deserialize<AudioStreamData>(stringContent);
 
-    //        var audioStreamData = _buffer.Get();
-    //        audioStreamData.AudioData = buffer;
-    //        audioStreamData.Timestamp = DateTime.UtcNow;
-    //        audioStreamData.CorrelationId = CorrelationId;
-    //        return audioStreamData;
-    //    }
-    //}
+            var audioStreamData = _buffer.Get();
+            audioStreamData.AudioData = buffer;
+            audioStreamData.Timestamp = DateTime.UtcNow;
+            audioStreamData.CorrelationId = CorrelationId;
+            return audioStreamData;
+        }
+    }
 }
