@@ -40,7 +40,7 @@ public class AudioStreamRouter : IAsyncDisposable
     private readonly ArrayPool<byte> _bufferPool = ArrayPool<byte>.Shared;
     private readonly int _pcmFrameSize; // expected bytes per PCM frame (from metadata)
     private volatile bool _openAiRestarting = false;
-    private CancellationTokenSource _cts = new();
+    private readonly CancellationTokenSource _cts = new();
 
     public AudioStreamRouter(string callId, WebSocket acsSocket, RealtimeConversationSession openAiSession,
                               AudioMetadata audioFormat, ILogger<AudioStreamRouter> logger, IConversationStore transcriptStore)
@@ -200,41 +200,31 @@ public class AudioStreamRouter : IAsyncDisposable
                     // Handle different types of updates from OpenAI
                     switch (update)
                     {
-                        case ConversationTranscriptionUpdate transcriptionUpdate:
-                            // Partial or final transcription of user speech
-                            if (transcriptionUpdate is ConversationInputTranscriptionFinishedUpdate inputDone)
-                            {
-                                string userText = inputDone.Transcript;
-                                _logger.LogInformation("🔹 User said (Call {CallId}): {Transcript}", _callId, userText);
-                                await _transcriptStore.AppendUserTranscriptAsync(_callId, userText);
-                            }
-                            else if (transcriptionUpdate is ConversationOutputTranscriptionDeltaUpdate outputDelta)
-                            {
-                                // (Optional) Handle incremental transcription of assistant's response (text)
-                                // Not storing until it's finished for clarity
-                            }
-                            else if (transcriptionUpdate is ConversationItemStreamingAudioTranscriptionFinishedUpdate outputDone)
-                            {
-                                // Final transcription of the assistant's spoken output
-                                string assistantText = outputDone.Transcript;
-                                _logger.LogInformation("🔸 Assistant said (Call {CallId}): {Transcript}", _callId, assistantText);
-                                await _transcriptStore.AppendAssistantTranscriptAsync(_callId, assistantText);
-                            }
+                        case ConversationInputTranscriptionFinishedUpdate transcriptionUpdate:
+                            // Final transcription of user speech
+                            _logger.LogInformation("🔹 User said (Call {CallId}): {Transcript}", _callId, transcriptionUpdate.Transcript);
+                            await _transcriptStore.AppendConversationHistoryAsync(_callId, transcriptionUpdate);
                             break;
-                        case ConversationAudioDeltaUpdate audioDeltaUpdate:
+                        case ConversationItemStreamingAudioTranscriptionFinishedUpdate conversationItemStreamingAudioTranscriptionFinishedUpdate:
+                            // Final transcription of the assistant's spoken output
+                            _logger.LogInformation("🔸 Assistant said (Call {CallId}): {Transcript}", _callId, conversationItemStreamingAudioTranscriptionFinishedUpdate.Transcript);
+                            await _transcriptStore.AppendConversationHistoryAsync(_callId, conversationItemStreamingAudioTranscriptionFinishedUpdate);
+                            break;
+                        case ConversationItemStreamingPartDeltaUpdate deltaUpdate:
+                            if (deltaUpdate.AudioBytes is null) break;
                             // The model produced a chunk of audio (as bytes)
-                            byte[] audioChunk = audioDeltaUpdate.Delta.ToArray();
-                            _logger.LogDebug("Received {Bytes} bytes of AI audio for Call {CallId}", audioChunk.Length, _callId);
+                            ArraySegment<byte> messageBytes = new(deltaUpdate.AudioBytes.ToArray());
+
+                            _logger.LogDebug("Received {Bytes} bytes of AI audio for Call {CallId}", messageBytes.Count, _callId);
                             // Send this audio chunk into the ACS call via WebSocket
-                            string json = OutgoingAcsAudio.FromAudioChunk(audioChunk);
-                            var bytes = Encoding.UTF8.GetBytes(json);
                             if (_acsSocket.State == WebSocketState.Open)
                             {
-                                await _acsSocket.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, cancellationToken: CancellationToken.None);
+                                await _acsSocket.SendAsync(messageBytes, WebSocketMessageType.Text, endOfMessage: true, cancellationToken: _cts.Token);
                             }
                             break;
                         case ConversationResponseFinishedUpdate responseFinished:
                             // The assistant's turn (response) finished.
+                            // With VAD, this should be automatically detected.
                             _logger.LogInformation("Assistant response finished for Call {CallId}.", _callId);
                             break;
                         case ConversationErrorUpdate errorUpdate:
