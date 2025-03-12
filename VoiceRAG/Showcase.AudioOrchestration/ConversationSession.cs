@@ -55,11 +55,11 @@ public class ConversationSession: IAsyncDisposable
         var history = await _transcriptionStore.GetConversationHistoryAsync(_conversationSessionId);
         if (history == null) return;
         var t = await _conversationClient.StartConversationSessionAsync(_cts.Token);
-        foreach (var update in history)
-        {
-            Mutate(update);
-            Version++;
-        }
+        //foreach (var update in history)
+        //{
+        //    Mutate(update);
+        //    Version++;
+        //}
     }
 
 
@@ -112,11 +112,11 @@ public class ConversationSession: IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        try { if (_acsSocket?.State == WebSocketState.Open) await _acsSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disposing", CancellationToken.None); }
+        try { if (_outboundAudioSocket?.State == WebSocketState.Open) await _outboundAudioSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disposing", CancellationToken.None); }
         catch { /* ignore */ }
         _cts.Cancel();
         _audioQueue.Writer.TryComplete();
-        if (_openAiSession != null)
-            await _openAiSession.DisposeAsync();
+        //if (_openAiSession != null)
+        //    await _openAiSession.DisposeAsync();
     }
 }

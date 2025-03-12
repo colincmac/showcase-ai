@@ -72,9 +72,9 @@ app.MapPost("/", async ([FromHeader(Name = "x-github-token")] string gitHubToken
     }
 
     var gitHubAgent = gitHubAgentFactory.CreateAgent(gitHubToken);
-    var response = gitHubAgent.CompleteStreamingAsync(chatRequest.Messages.Select(x => (ChatMessage)x).ToList(), cancellationToken: cancellationToken);
+    var response = gitHubAgent.GetStreamingResponseAsync(chatRequest.Messages.Select(x => (ChatMessage)x).ToList(), cancellationToken: cancellationToken);
     var sseEvents = response
-        .Where(x => x.RawRepresentation is OpenAI.Chat.StreamingChatCompletionUpdate && !string.IsNullOrEmpty(x.CompletionId))
+        .Where(x => x.RawRepresentation is OpenAI.Chat.StreamingChatCompletionUpdate && !string.IsNullOrEmpty(x.ResponseId))
         .Select(s => s.RawRepresentation as OpenAI.Chat.StreamingChatCompletionUpdate);
 
     await AIJsonUtilitiesExtensions.SerializeAndSendAsSseDataAsync(ctx.Response.Body, sseEvents, options: GitHubCopilotJsonContext.Default.StreamingChatCompletionUpdate.Options, cancellationToken: cancellationToken);
