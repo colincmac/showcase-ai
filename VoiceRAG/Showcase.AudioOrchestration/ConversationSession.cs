@@ -55,11 +55,11 @@ public class ConversationSession: IAsyncDisposable
         var history = await _transcriptionStore.GetConversationHistoryAsync(_conversationSessionId);
         if (history == null) return;
         var t = await _conversationClient.StartConversationSessionAsync(_cts.Token);
-        foreach (var update in history)
-        {
-            Mutate(update);
-            Version++;
-        }
+        //foreach (var update in history)
+        //{
+        //    Mutate(update);
+        //    Version++;
+        //}
     }
 
 

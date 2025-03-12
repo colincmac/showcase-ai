@@ -18,25 +18,22 @@ public partial class GitHubCopilotAgent : IChatClient
         Name = name;
     }
 
-    public ChatClientMetadata Metadata => _innerClient.Metadata;
-
-
     [GeneratedRegex(@"\[\s*""?\/(\S+)"",?\s*""(.*)""\s*\]")]
     public static partial Regex MessageRegexAfterIntent();
 
     [GeneratedRegex(@"(@[a-zA-Z0-9_-]+)?\s*(?:/(?<command>[a-zA-Z0-9_-]+))?\s*(?<content>.*)")]
     public static partial Regex MessageRegexBeforeFormatDetection();
 
-    public Task<ChatCompletion> CompleteAsync(IList<ChatMessage> chatMessages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+    public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> chatMessages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
         var chatOptions = OptionsWithTools(chatMessages, options);
-        return _innerClient.CompleteAsync(chatMessages, chatOptions, cancellationToken);
+        return _innerClient.GetResponseAsync(chatMessages, chatOptions, cancellationToken);
     }
 
-    public IAsyncEnumerable<StreamingChatCompletionUpdate> CompleteStreamingAsync(IList<ChatMessage> chatMessages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> chatMessages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
         var chatOptions = OptionsWithTools(chatMessages, options);
-        return _innerClient.CompleteStreamingAsync(chatMessages, chatOptions, cancellationToken);
+        return _innerClient.GetStreamingResponseAsync(chatMessages, chatOptions, cancellationToken);
     }
 
     public virtual object? GetService(Type serviceType, object? serviceKey = null)
@@ -49,7 +46,7 @@ public partial class GitHubCopilotAgent : IChatClient
             _innerClient.GetService(serviceType, serviceKey);
     }
 
-    private ChatOptions? OptionsWithTools(IList<ChatMessage> chatMessages, ChatOptions? options)
+    private ChatOptions? OptionsWithTools(IEnumerable<ChatMessage> chatMessages, ChatOptions? options)
     {
         var (tools, command, content) = ParseMessage(chatMessages);
         if (tools.Count > 0)
@@ -57,7 +54,7 @@ public partial class GitHubCopilotAgent : IChatClient
             var specificToolRequested = tools.Count == 1 && !string.IsNullOrEmpty(command);
 
             options ??= new();
-            options.ToolMode = specificToolRequested ? ChatToolMode.RequireSpecific(tools.First().Metadata.Name) : ChatToolMode.Auto;
+            options.ToolMode = specificToolRequested ? ChatToolMode.RequireSpecific(tools.First().Name) : ChatToolMode.Auto;
             options.Tools = options.Tools is null ? [.. tools] : [.. options.Tools, .. tools];
 
         }
