@@ -16,7 +16,8 @@ using Microsoft.Extensions.Logging;
 using Azure.AI.OpenAI;
 // Azure OpenAI SDK (includes RealtimeConversationSession)
 using Azure;
-using OpenAI.RealtimeConversation;           // for AzureKeyCredential, etc.
+using OpenAI.RealtimeConversation;
+using Azure.Communication.CallAutomation;           // for AzureKeyCredential, etc.
 
 namespace Showcase.AudioOrchestration;
 
@@ -89,27 +90,29 @@ public class AudioStreamRouter : IAsyncDisposable
         byte[] receiveBuffer = _bufferPool.Rent(4096);
         try
         {
-            // First message should be AudioMetadata JSON
-            WebSocketReceiveResult result = await _acsSocket.ReceiveAsync(receiveBuffer, cancelToken);
-            if (result.MessageType == WebSocketMessageType.Text)
-            {
-                string metaJson = Encoding.UTF8.GetString(receiveBuffer, 0, result.Count);
-                var doc = JsonDocument.Parse(metaJson);
-                if (doc.RootElement.GetProperty("kind").GetString() == "AudioMetadata")
-                {
-                    var meta = doc.RootElement.GetProperty("audioMetadata");
-                    int sr = meta.GetProperty("sampleRate").GetInt32();
-                    int ch = meta.GetProperty("channels").GetInt32();
-                    int len = meta.GetProperty("length").GetInt32();
-                    _logger.LogInformation("Received AudioMetadata: {SampleRate} Hz, {Channels} channel(s), frame length {Length} bytes", sr, ch, len);
-                    // (We already set _pcmFrameSize from constructor AudioMetadata)
-                }
-            }
+            //// First message should be AudioMetadata JSON
+            //WebSocketReceiveResult result = await _acsSocket.ReceiveAsync(receiveBuffer, cancelToken);
+            //if (result.MessageType == WebSocketMessageType.Text)
+            //{
+            //    string metaJson = Encoding.UTF8.GetString(receiveBuffer, 0, result.Count);
+            //    var doc = JsonDocument.Parse(metaJson);
+            //    if (doc.RootElement.GetProperty("kind").GetString() == "AudioMetadata")
+            //    {
+            //        var meta = doc.RootElement.GetProperty("audioMetadata");
+            //        int sr = meta.GetProperty("sampleRate").GetInt32();
+            //        int ch = meta.GetProperty("channels").GetInt32();
+            //        int len = meta.GetProperty("length").GetInt32();
+            //        _logger.LogInformation("Received AudioMetadata: {SampleRate} Hz, {Channels} channel(s), frame length {Length} bytes", sr, ch, len);
+            //        // (We already set _pcmFrameSize from constructor AudioMetadata)
+            //    }
+            //}
 
             // Loop to receive audio frames from ACS
             while (!cancelToken.IsCancellationRequested && _acsSocket.State == WebSocketState.Open)
             {
-                result = await _acsSocket.ReceiveAsync(receiveBuffer, cancelToken);
+                var result = await _acsSocket.ReceiveAsync(receiveBuffer, cancelToken);
+                var input = StreamingData.Parse(result);
+
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
                     _logger.LogWarning("ACS WebSocket closed for Call {CallId}. Code {CloseStatus}, Reason: {CloseReason}",

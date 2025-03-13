@@ -13,23 +13,30 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using static Showcase.Shared.AIExtensions.Realtime.Telemetry.OpenTelemetryConstants;
 
 namespace Showcase.AudioOrchestration;
 
-public class ConversationSession : IAsyncDisposable
+public class ConversationManager : IAsyncDisposable
 {
-    private readonly ILogger<ConversationSession> _logger;
+    private readonly ILogger<ConversationManager> _logger;
     private readonly Channel<AudioFrame> _audioQueue;
     private readonly IConversationStore _transcriptionStore; // e.g., Redis-backed store
     private readonly ConversationSessionOptions _conversationSessionOptions;
     private readonly ArrayPool<byte> _bufferPool = ArrayPool<byte>.Shared;
     private readonly RealtimeConversationClient _conversationClient;
 
+    public Broadcaster<byte[]> AudioBroadcaster { get; } = new Broadcaster<byte[]>();
+    public Broadcaster<BinaryData> AiEventBroadcaster { get; } = new Broadcaster<BinaryData>();
+
+    private readonly List<ConversationParticipant> _participants = new();
+
+
     private string _conversationSessionId = string.Empty;
     private CancellationTokenSource _cts = new();
     private WebSocket _outboundAudioSocket;
 
-    public ConversationSession(AzureOpenAIClient openAIClient, IOptions<ConversationSessionOptions> sessionOptions, IConversationStore transcriptionStore, ILogger<ConversationSession> logger)
+    public ConversationManager(AzureOpenAIClient openAIClient, IOptions<ConversationSessionOptions> sessionOptions, IConversationStore transcriptionStore, ILogger<ConversationManager> logger)
     {
         _conversationSessionOptions = sessionOptions.Value;
         _transcriptionStore = transcriptionStore;
@@ -41,6 +48,14 @@ public class ConversationSession : IAsyncDisposable
             SingleReader = true,
             FullMode = BoundedChannelFullMode.Wait // backpressure if OpenAI is slow
         });
+    }
+
+    public void AddParticipant(ConversationParticipant participant)
+    {
+        _participants.Add(participant);
+        // Let the participant subscribe to the audio and AI event streams.
+        participant.SubscribeAudio(AudioBroadcaster.Subscribe());
+        participant.SubscribeAiEvents(AiEventBroadcaster.Subscribe());
     }
 
     public async Task StartConversationAsync(
