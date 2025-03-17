@@ -6,6 +6,6 @@ using System.Threading.Tasks;
 
 namespace Showcase.AudioOrchestration;
 
-public class UserConversationParticipant
+public interface IAgentInput
 {
 }
