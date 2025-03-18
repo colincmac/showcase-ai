@@ -10,7 +10,7 @@ namespace Showcase.AudioOrchestration;
 #region Shared Models & Commands
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
-public enum WellKnownAIDataType
+public enum WellKnownDataType
 {
     Text,
     Audio,
@@ -21,7 +21,7 @@ public enum WellKnownAIDataType
 /// <summary>
 /// Represents one audio frame of PCM 24K Mono data.
 /// </summary>
-public record StreamingDataFrame(byte[] Buffer, bool IsEmpty);
+public record StreamingDataFrame(BinaryData data);
 
 /// <summary>
 /// Represents one audio frame of PCM 24K Mono data.

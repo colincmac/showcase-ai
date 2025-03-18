@@ -17,13 +17,18 @@ using static Showcase.Shared.AIExtensions.Realtime.Telemetry.OpenTelemetryConsta
 
 namespace Showcase.AudioOrchestration;
 
-public class AIRealtimeConversationAgent : IAgentChannel
+public class RealtimeConversationChannel : IAgentChannel
 {
     private readonly RealtimeConversationClient _aiClient;
     private readonly ConversationSessionOptions _sessionOptions;
     private readonly ILogger _logger;
     private RealtimeConversationSession? _currentSession;
-    private readonly Channel<ConversationItem> _internalChannel = Channel.CreateUnbounded<ConversationItem>();
+
+    // Maybe create this as bounded if the other agents are noisy
+    // Should this be adaptable for different types of AI responses if the agents need too communicate with each other (ConversationItem, ChatResponse, etc.)?
+    private readonly Channel<ConversationItem> _internalCommunicationChannel = Channel.CreateUnbounded<ConversationItem>();
+    
+    public Channel<AudioFrame> _outboundAudioChannel;
 
     private readonly ConversationHistory _conversationTranscriptionHistory = new();
 
@@ -31,37 +36,30 @@ public class AIRealtimeConversationAgent : IAgentChannel
 
     internal Task Running { get; private set; } = Task.CompletedTask;
 
-    public AIRealtimeConversationAgent(RealtimeConversationClient aiClient, ConversationSessionOptions sessionOptions, ILogger logger)
+    public RealtimeConversationChannel(RealtimeConversationClient aiClient, ConversationSessionOptions sessionOptions, ILogger logger)
     {
         _logger = logger;
         _aiClient = aiClient;
         _sessionOptions = sessionOptions;
-        ConversationId = Guid.NewGuid().ToString();
-    }
-
-    public bool AcceptsDataType(WellKnownAIDataType modality)
-    {
-        // Check if the modality is supported by the AI client.
-        return modality switch
+        _outboundAudioChannel = Channel.CreateBounded<AudioFrame>(new BoundedChannelOptions(100)
         {
-            WellKnownAIDataType.Text => true,
-            WellKnownAIDataType.Audio => true,
-            WellKnownAIDataType.Video => false,
-            WellKnownAIDataType.SensorData => false,
-            _ => throw new NotSupportedException($"Data type {modality} is not supported by this AI.")
-        };
+            SingleReader = true,
+            SingleWriter = true,
+            FullMode = BoundedChannelFullMode.Wait
+        });
+        ConversationId = Guid.NewGuid().ToString();
     }
 
     public async Task StartConversationSessionAsync(CancellationToken cancellationToken = default)
     {
-        // Start the conversation session with the AI client and configure with options.
-        _currentSession = await _aiClient.StartConversationSessionAsync(cancellationToken);
-        await _currentSession.ConfigureSessionAsync(_sessionOptions, cancellationToken);
+
         var isReconnect = false;
 
         if(_currentSession == null)
         {
-
+            // Start the conversation session with the AI client and configure with options.
+            _currentSession = await _aiClient.StartConversationSessionAsync(cancellationToken);
+            await _currentSession.ConfigureSessionAsync(_sessionOptions, cancellationToken);
         }
         else
         {
@@ -82,6 +80,7 @@ public class AIRealtimeConversationAgent : IAgentChannel
             //    _conversationTranscriptionHistory.Add(item);
             //}
         }
+
     }
 
     public Task ProcessInboundDataAsync(DataFrame frame, CancellationToken cancellationToken)
