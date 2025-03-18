@@ -31,11 +31,10 @@ public class AgentDataMultiplexer
     private string _conversationId;
 
     // Channels for inbound (from ACS) and outbound (to ACS) audio.
-    private Channel<DataFrame> _inboundMessageChannel;
-    private Channel<AudioData> _inboundAudioChannel;
-    private Channel<AudioFrame> _outboundAudioChannel;
+    private Channel<DataFrame> _inboundDataChannel;
+    private Channel<DataFrame> _outboundDataChannel;
 
-    private readonly List<IAgent> _aiAgents = [];
+    private readonly List<IAgentChannel> _aiAgents = [];
 
     public AgentDataMultiplexer(RealtimeConversationClient realtimeConversationClient, IConversationStore conversationStore, IOptions<RealtimeConversationOptions> options, ILogger<AgentDataMultiplexer> logger)
     {
@@ -46,19 +45,13 @@ public class AgentDataMultiplexer
         _realtimeConversationClient = realtimeConversationClient;
 
         // Create bounded channels to keep memory usage in check.
-        _inboundMessageChannel = Channel.CreateBounded<DataFrame>(new BoundedChannelOptions(_channelCapacity)
+        _inboundDataChannel = Channel.CreateBounded<DataFrame>(new BoundedChannelOptions(_channelCapacity)
         {
             SingleReader = true,
             SingleWriter = true,
             FullMode = BoundedChannelFullMode.Wait
         });
-        _inboundAudioChannel = Channel.CreateBounded<AudioData>(new BoundedChannelOptions(_channelCapacity)
-        {
-            SingleReader = true,
-            SingleWriter = true,
-            FullMode = BoundedChannelFullMode.Wait
-        });
-        _outboundAudioChannel = Channel.CreateBounded<AudioFrame>(new BoundedChannelOptions(_channelCapacity)
+        _outboundDataChannel = Channel.CreateBounded<DataFrame>(new BoundedChannelOptions(_channelCapacity)
         {
             SingleReader = true,
             SingleWriter = true,
@@ -69,7 +62,7 @@ public class AgentDataMultiplexer
     public async Task StartAsync(string conversationId, WebSocket socket, CancellationToken cancellationToken = default)
     {
         _conversationId = conversationId;
-        _socket = socket ?? throw new ArgumentNullException(nameof(socket));
+        _socket = socket;
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
 
         var session = await _realtimeConversationClient.StartConversationSessionAsync(_cts.Token);
@@ -77,18 +70,18 @@ public class AgentDataMultiplexer
         // Start tasks to read from the socket and distribute both inbound and outbound audio.
         var socketReaderTask = Task.Run(() => ReadFromSocketAsync(_cts.Token), _cts.Token);
         var inboundDistributorTask = Task.Run(() => DistributeInboundAIDataAsync(_cts.Token), _cts.Token);
-        var outboundDistributorTask = Task.Run(() => DistributeGeneratedOutboundDataAsync(_cts.Token), _cts.Token);
+        var outboundDistributorTask = Task.Run(() => DistributeAIGeneratedOutboundDataAsync(_cts.Token), _cts.Token);
 
         await Task.WhenAll(socketReaderTask, inboundDistributorTask, outboundDistributorTask);
     }
 
-    public virtual AudioFrame? ParseInboundAudioToAgents(byte[] buffer, int totalBytes)
+    public virtual DataFrame? ParseInboundAudioToListeners(byte[] buffer, int totalBytes)
     {
         string json = Encoding.UTF8.GetString(buffer, 0, totalBytes);
         var input = StreamingData.Parse(json);
         if(input is AudioData audioData)
         {
-            return new AudioFrame(audioData.Data, audioData.IsSilent);
+            return new DataFrame(audioData.Data, audioData.IsSilent);
         }
         else
         {
@@ -97,7 +90,7 @@ public class AgentDataMultiplexer
         }
     }
 
-    public virtual BinaryData ParseOutboundDataToUsers(byte[] buffer)
+    public virtual BinaryData ParseOutboundDataToListeners(byte[] buffer)
     {
         var audio = OutStreamingData.GetAudioDataForOutbound(buffer);
         return BinaryData.FromString(audio);
@@ -106,7 +99,7 @@ public class AgentDataMultiplexer
     /// <summary>
     /// Registers an AI agent.
     /// </summary>
-    public void RegisterAgent(IAgent agent) => _aiAgents.Add(agent);
+    public void RegisterAgent(IAgentChannel agent) => _aiAgents.Add(agent);
 
     /// <summary>
     /// Reads messages from the ACS WebSocket. Expects JSON messages with a base64‐encoded audio frame.
@@ -139,8 +132,8 @@ public class AgentDataMultiplexer
                         result = await _socket.ReceiveAsync(new ArraySegment<byte>(receiveBuffer, totalBytes, receiveBuffer.Length - totalBytes), cancellationToken);
                         totalBytes += result.Count;
                     }
-                    var dataFrame = ParseInboundAudioToAgents(receiveBuffer, totalBytes);
-                    if (dataFrame != null)  await _inboundMessageChannel.Writer.WriteAsync(dataFrame, cancellationToken);
+                    var dataFrame = ParseInboundAudioToListeners(receiveBuffer, totalBytes);
+                    if (dataFrame != null)  await _inboundDataChannel.Writer.WriteAsync(dataFrame, cancellationToken);
                 }
             }
         }
@@ -151,7 +144,7 @@ public class AgentDataMultiplexer
         }
         finally
         {
-            _inboundMessageChannel.Writer.Complete();
+            _inboundDataChannel.Writer.Complete();
             _bufferPool.Return(receiveBuffer);
         }
     }
@@ -161,7 +154,7 @@ public class AgentDataMultiplexer
     /// </summary>
     private async Task DistributeInboundAIDataAsync(CancellationToken cancellationToken)
     {
-        await foreach (var frame in _inboundMessageChannel.Reader.ReadAllAsync(cancellationToken))
+        await foreach (var frame in _inboundDataChannel.Reader.ReadAllAsync(cancellationToken))
         {
             // Deliver inbound to agents.
             foreach (var agent in _aiAgents)
@@ -176,9 +169,9 @@ public class AgentDataMultiplexer
     /// <summary>
     /// Distributes outbound frames (produced by the primary agent) to auditing agents and sends them back to ACS.
     /// </summary>
-    private async Task DistributeGeneratedOutboundDataAsync(CancellationToken cancellationToken)
+    private async Task DistributeAIGeneratedOutboundDataAsync(CancellationToken cancellationToken)
     {
-        await foreach (var frame in _outboundAudioChannel.Reader.ReadAllAsync(cancellationToken))
+        await foreach (var frame in _outboundDataChannel.Reader.ReadAllAsync(cancellationToken))
         {
             // Let auditing agents observe outbound audio.
             foreach (var agent in _aiAgents)
@@ -188,7 +181,7 @@ public class AgentDataMultiplexer
             // Forward outbound audio back to ACS.
             if (_socket?.State == WebSocketState.Open)
             {
-                var data = ParseOutboundDataToUsers(frame.Buffer);
+                var data = ParseOutboundDataToListeners(frame.Buffer);
                 await _socket.SendAsync(data, WebSocketMessageType.Text, endOfMessage: true, cancellationToken);
             }
             _bufferPool.Return(frame.Buffer);
@@ -200,14 +193,14 @@ public class AgentDataMultiplexer
     /// </summary>
     public async Task PublishOutboundAsync(DataFrame frame, CancellationToken cancellationToken)
     {
-        await _outboundAudioChannel.Writer.WriteAsync(frame, cancellationToken);
+        await _outboundDataChannel.Writer.WriteAsync(frame, cancellationToken);
     }
 
     public async ValueTask DisposeAsync()
     {
         _cts.Cancel();
-        _inboundMessageChannel.Writer.Complete();
-        _outboundAudioChannel.Writer.Complete();
+        _inboundDataChannel.Writer.Complete();
+        _outboundDataChannel.Writer.Complete();
         if (_socket != null && _socket.State == WebSocketState.Open)
         {
             await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disposing", CancellationToken.None);

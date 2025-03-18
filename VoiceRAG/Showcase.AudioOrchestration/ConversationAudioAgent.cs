@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Showcase.AudioOrchestration;
 
-public class ConversationAudioAgent : IAgent, IDisposable
+public class ConversationAudioAgent : IAgentChannel, IDisposable
 {
 
     private readonly ILogger<ConversationAudioAgent> _logger;

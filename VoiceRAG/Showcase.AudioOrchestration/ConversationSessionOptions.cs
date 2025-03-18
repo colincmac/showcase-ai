@@ -11,25 +11,25 @@ using System.Threading.Tasks;
 
 namespace Showcase.AudioOrchestration;
 
-public class ConversationSessionOptions
-{
-    public string? ModelId { get; set; }
-    public string? Instructions { get; set; }
-    public ConversationVoice? Voice { get; set; }
-    public ConversationAudioFormat? InputAudioFormat { get; set; }
-    public ConversationAudioFormat? OutputAudioFormat { get; set; }
+//public class ConversationSessionOptions
+//{
+//    public string? ModelId { get; set; }
+//    public string? Instructions { get; set; }
+//    public ConversationVoice? Voice { get; set; }
+//    public ConversationAudioFormat? InputAudioFormat { get; set; }
+//    public ConversationAudioFormat? OutputAudioFormat { get; set; }
 
-    [JsonIgnore]
-    public IList<AITool>? Tools { get; set; }
-    public float? Temperature { get; set; }
-    public ConversationToolChoice? ToolChoice { get; set; }
+//    [JsonIgnore]
+//    public IList<AITool>? Tools { get; set; }
+//    public float? Temperature { get; set; }
+//    public ConversationToolChoice? ToolChoice { get; set; }
 
-    public ConversationMaxTokensChoice? MaxOutputTokens { get; set; }
+//    public ConversationMaxTokensChoice? MaxOutputTokens { get; set; }
 
-    public ConversationTurnDetectionOptions? TurnDetectionOptions { get; set; }
-    public ConversationInputTranscriptionOptions? InputTranscriptionOptions { get; set; }
-    public ConversationContentModalities ContentModalities { get; set; }
-    public AdditionalPropertiesDictionary? AdditionalProperties { get; set; }
+//    public ConversationTurnDetectionOptions? TurnDetectionOptions { get; set; }
+//    public ConversationInputTranscriptionOptions? InputTranscriptionOptions { get; set; }
+//    public ConversationContentModalities ContentModalities { get; set; }
+//    public AdditionalPropertiesDictionary? AdditionalProperties { get; set; }
     
-    public int PCMFrameSize { get; set; } = 0;
-}
+//    public int PCMFrameSize { get; set; } = 0;
+//}

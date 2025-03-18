@@ -2,11 +2,26 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Showcase.AudioOrchestration;
 
 #region Shared Models & Commands
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum WellKnownAIDataType
+{
+    Text,
+    Audio,
+    Video,
+    SensorData
+}
+
+/// <summary>
+/// Represents one audio frame of PCM 24K Mono data.
+/// </summary>
+public record StreamingDataFrame(byte[] Buffer, bool IsEmpty);
 
 /// <summary>
 /// Represents one audio frame of PCM 24K Mono data.
