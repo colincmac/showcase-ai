@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using OpenAI.RealtimeConversation;
 using Showcase.Shared.AIExtensions.Realtime;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Mail;
@@ -23,18 +24,24 @@ public class RealtimeConversationChannel : IAgentChannel
     private readonly ConversationSessionOptions _sessionOptions;
     private readonly ILogger _logger;
     private RealtimeConversationSession? _currentSession;
+    private static readonly ArrayPool<byte> _bufferPool = ArrayPool<byte>.Shared;
+
+    private readonly Channel<BinaryData> _participantFeed;
 
     // Maybe create this as bounded if the other agents are noisy
     // Should this be adaptable for different types of AI responses if the agents need too communicate with each other (ConversationItem, ChatResponse, etc.)?
     private readonly Channel<ConversationItem> _internalCommunicationChannel = Channel.CreateUnbounded<ConversationItem>();
     
     public Channel<AudioFrame> _outboundAudioChannel;
+    public Channel<ConversationUpdate> _internalChannel;
 
     private readonly ConversationHistory _conversationTranscriptionHistory = new();
 
     public readonly string ConversationId;
 
     internal Task Running { get; private set; } = Task.CompletedTask;
+    internal Task OutboundTask { get; private set; } = Task.CompletedTask;
+    internal Task InboundTask { get; private set; } = Task.CompletedTask;
 
     public RealtimeConversationChannel(RealtimeConversationClient aiClient, ConversationSessionOptions sessionOptions, ILogger logger)
     {
@@ -46,6 +53,11 @@ public class RealtimeConversationChannel : IAgentChannel
             SingleReader = true,
             SingleWriter = true,
             FullMode = BoundedChannelFullMode.Wait
+        });
+        _internalChannel = Channel.CreateUnbounded<ConversationUpdate>(new UnboundedChannelOptions
+        {
+            SingleReader = false,
+            SingleWriter = true
         });
         ConversationId = Guid.NewGuid().ToString();
     }

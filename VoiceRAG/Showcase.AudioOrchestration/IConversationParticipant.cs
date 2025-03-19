@@ -9,7 +9,7 @@ namespace Showcase.AudioOrchestration;
 
 public interface IConversationParticipant
 {
-    Task SendDataAsync(BinaryData data, CancellationToken cancellationToken = default);
+    Task SendAsync(BinaryData data, CancellationToken cancellationToken = default);
     Task StartAsync(CancellationToken cancellationToken = default);
-    void BroadcastTo(IEnumerable<IConversationParticipant> participants);
+    Task ReceiveAsync(IEnumerable<IConversationParticipant> participants);
 }

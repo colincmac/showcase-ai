@@ -1,4 +1,7 @@
-﻿using System;
+﻿#pragma warning disable OPENAI002
+
+using OpenAI.RealtimeConversation;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,10 +21,15 @@ public enum WellKnownDataType
     SensorData
 }
 
+
 /// <summary>
 /// Represents one audio frame of PCM 24K Mono data.
 /// </summary>
 public record StreamingDataFrame(BinaryData data);
+
+public record RealtimeEvent(string EventType, BinaryData ServiceEvent, string ServiceEventType);
+
+public record RealtimeConversationUpdateEvent(ConversationUpdate Update);
 
 /// <summary>
 /// Represents one audio frame of PCM 24K Mono data.

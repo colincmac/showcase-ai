@@ -35,7 +35,7 @@ public class VoiceConversationParticipant : IConversationParticipant, IDisposabl
     private readonly ConversationSessionOptions _sessionOptions;
     private readonly ILogger _logger;
     private RealtimeConversationSession? _currentSession;
-    private readonly List<IConversationParticipant> conversationParticipants = new();
+
     internal Task OutboundTask { get; private set; } = Task.CompletedTask;
     internal Task InboundTask { get; private set; } = Task.CompletedTask;
     private readonly ConversationHistory _conversationTranscriptionHistory = new();
@@ -85,14 +85,13 @@ public class VoiceConversationParticipant : IConversationParticipant, IDisposabl
         InboundTask = Task.Run(() => ProcessOutboundAsync(_cts.Token), _cts.Token);
     }
 
-    public async Task SendDataAsync(BinaryData data, CancellationToken cancellationToken = default)
+    public async Task SendAsync(BinaryData data, CancellationToken cancellationToken = default)
     {
         await _participantFeed.Writer.WriteAsync(data, cancellationToken);
     }
 
     public void BroadcastTo(IEnumerable<IConversationParticipant> participants)
     {
-        conversationParticipants.AddRange(participants);
     }
 
     private async Task ProcessInbound(CancellationToken cancellationToken)
@@ -116,7 +115,7 @@ public class VoiceConversationParticipant : IConversationParticipant, IDisposabl
     private async Task ProcessOutboundAsync(CancellationToken cancellationToken)
     {
         byte[] receiveBuffer = _bufferPool.Rent(4096);
-
+        
         try
         {
             while (!cancellationToken.IsCancellationRequested)
