@@ -13,21 +13,36 @@ namespace Showcase.AudioOrchestration;
 #region Shared Models & Commands
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
-public enum WellKnownDataType
+public enum WellKnownEventDataType
 {
     Text,
     Audio,
     Video,
-    SensorData
+    Metric
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum WellKnownEventType
+{
+    Message,
+    TranscriptText,
+    RawAudio,
+    RawVideo,
+    MetricData,
+    StopAudio,
 }
 
 
-/// <summary>
-/// Represents one audio frame of PCM 24K Mono data.
-/// </summary>
-public record StreamingDataFrame(BinaryData data);
+public record RealtimeEvent(WellKnownEventType EventType, string ServiceEventType, string SourceId)
+{
+    public Guid EventId { get; init; } = Guid.CreateVersion7(DateTimeOffset.UtcNow);
+};
+public record RealtimeAudioEvent(BinaryData AudioData, string ServiceEventType, string SourceId, string? TranscriptText = null): RealtimeEvent(WellKnownEventType.RawAudio, ServiceEventType, SourceId);
+public record RealtimeMessageEvent(string ChatMessageContent, string ServiceEventType, string SourceId) : RealtimeEvent(WellKnownEventType.Message, ServiceEventType, SourceId);
+public record RealtimeTranscriptMessageEvent(string Transcription, string ServiceEventType, string SourceId) : RealtimeEvent(WellKnownEventType.TranscriptText, ServiceEventType, SourceId);
 
-public record RealtimeEvent(string EventType, BinaryData ServiceEvent, string ServiceEventType);
+public record RealtimeMetricEvent(BinaryData Metric, string ServiceEventType, string SourceId) : RealtimeEvent(WellKnownEventType.MetricData, ServiceEventType, SourceId);
+public record RealtimeStopAudioEvent(string ServiceEventType, string SourceId) : RealtimeEvent(WellKnownEventType.StopAudio, ServiceEventType, SourceId);
 
 public record RealtimeConversationUpdateEvent(ConversationUpdate Update);
 

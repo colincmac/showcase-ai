@@ -18,7 +18,7 @@ using static Showcase.Shared.AIExtensions.Realtime.Telemetry.OpenTelemetryConsta
 
 namespace Showcase.AudioOrchestration;
 
-public class VoiceConversationParticipant : IConversationParticipant, IDisposable
+public class VoiceConversationParticipant : IDisposable
 {
     public string ParticipantId { get; set; }
     public string? ParticipantName { get; init; }
@@ -27,7 +27,9 @@ public class VoiceConversationParticipant : IConversationParticipant, IDisposabl
 
     private bool _gracefulClose;
 
-    private readonly Channel<BinaryData> _participantFeed;
+    private readonly Channel<BinaryData> _outputChannel;
+    private readonly Channel<BinaryData> _inputChannel;
+
     private CancellationTokenSource _cts = new();
     private static readonly ArrayPool<byte> _bufferPool = ArrayPool<byte>.Shared;
 
@@ -38,13 +40,18 @@ public class VoiceConversationParticipant : IConversationParticipant, IDisposabl
 
     internal Task OutboundTask { get; private set; } = Task.CompletedTask;
     internal Task InboundTask { get; private set; } = Task.CompletedTask;
-    private readonly ConversationHistory _conversationTranscriptionHistory = new();
 
-    public VoiceConversationParticipant( RealtimeConversationClient aiClient, ConversationSessionOptions sessionOptions, ILogger logger, string participantId, string? participantName = default)
+    public VoiceConversationParticipant(RealtimeConversationClient aiClient, ConversationSessionOptions sessionOptions, ILogger logger, string participantId, string? participantName = default)
     {
         ParticipantId = participantId;
         ParticipantName = participantName;
-        _participantFeed = Channel.CreateBounded<BinaryData>(new BoundedChannelOptions(channelCapacity)
+        _outputChannel = Channel.CreateBounded<BinaryData>(new BoundedChannelOptions(100)
+        {
+            SingleReader = false,
+            SingleWriter = true,
+            FullMode = BoundedChannelFullMode.Wait
+        });
+        _inputChannel = Channel.CreateBounded<BinaryData>(new BoundedChannelOptions(100)
         {
             SingleReader = true,
             SingleWriter = false,
@@ -52,23 +59,10 @@ public class VoiceConversationParticipant : IConversationParticipant, IDisposabl
         });
     }
 
-    public bool AcceptsDataType(WellKnownDataType modality)
-    {
-        // Check if the modality is supported by the Participant channel.
-        return modality switch
-        {
-            WellKnownDataType.Text => true,
-            WellKnownDataType.Audio => true,
-            WellKnownDataType.Video => false,
-            WellKnownDataType.SensorData => false,
-            _ => throw new NotSupportedException($"Data type {modality} is not supported by this AI.")
-        };
-    }
-
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        
+
         var isReconnect = false;
 
         if (_currentSession == null)
@@ -85,9 +79,24 @@ public class VoiceConversationParticipant : IConversationParticipant, IDisposabl
         InboundTask = Task.Run(() => ProcessOutboundAsync(_cts.Token), _cts.Token);
     }
 
+    public bool AcceptsDataType(WellKnownEventDataType modality)
+    {
+        // Check if the modality is supported by the Participant channel.
+        return modality switch
+        {
+            WellKnownEventDataType.Text => true,
+            WellKnownEventDataType.Audio => true,
+            WellKnownEventDataType.Video => false,
+            WellKnownEventDataType.Metric => false,
+            _ => throw new NotSupportedException($"Data type {modality} is not supported by this AI.")
+        };
+    }
+
+
+
     public async Task SendAsync(BinaryData data, CancellationToken cancellationToken = default)
     {
-        await _participantFeed.Writer.WriteAsync(data, cancellationToken);
+        await _realtimeEventStream.Writer.WriteAsync(data, cancellationToken);
     }
 
     public void BroadcastTo(IEnumerable<IConversationParticipant> participants)
@@ -100,7 +109,7 @@ public class VoiceConversationParticipant : IConversationParticipant, IDisposabl
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                await foreach (var update in _participantFeed.Reader.ReadAllAsync(cancellationToken))
+                await foreach (var update in _realtimeEventStream.Reader.ReadAllAsync(cancellationToken))
                 {
                     //Todo:
                 }
@@ -123,7 +132,7 @@ public class VoiceConversationParticipant : IConversationParticipant, IDisposabl
                 await foreach (var update in _currentSession.ReceiveUpdatesAsync(cancellationToken))
                 {
                     // Write to participants
-                    _participantFeed.Writer.WriteAsync(update.GetRawContent(), cancellationToken);
+                    _realtimeEventStream.Writer.WriteAsync(update.GetRawContent(), cancellationToken);
                     
                     //// Handle the updates
                     //if (update is ConversationItemStreamingPartDeltaUpdate deltaUpdate)
@@ -172,6 +181,6 @@ public class VoiceConversationParticipant : IConversationParticipant, IDisposabl
     {
         _cts.Cancel();
         _cts.Dispose();
-        _participantFeed.Writer.Complete();
+        _realtimeEventStream.Writer.Complete();
     }
 }

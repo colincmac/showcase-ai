@@ -11,11 +11,11 @@ using System.Threading.Tasks;
 
 namespace Showcase.AudioOrchestration;
 
-public class ConversationHistory : IList<ConversationItem>, IReadOnlyList<ConversationItem>
+public class ConversationHistory : IList<RealtimeEvent>, IReadOnlyList<RealtimeEvent>
 {
-    private readonly List<ConversationItem> _messages = [];
+    private readonly List<RealtimeEvent> _messages = [];
 
-    public ConversationItem this[int index]
+    public RealtimeEvent this[int index]
     {
         get => _messages[index];
         set => _messages[index] = value;
@@ -25,11 +25,11 @@ public class ConversationHistory : IList<ConversationItem>, IReadOnlyList<Conver
 
     public bool IsReadOnly => false;
 
-    public void Add(ConversationItem item)
+    public void Add(RealtimeEvent item)
     {
         _messages.Add(item);
     }
-    public void AddRange(IEnumerable<ConversationItem> items)
+    public void AddRange(IEnumerable<RealtimeEvent> items)
     {
         _messages.AddRange(items);
     }
@@ -39,32 +39,32 @@ public class ConversationHistory : IList<ConversationItem>, IReadOnlyList<Conver
         _messages.Clear();
     }
 
-    public bool Contains(ConversationItem item)
+    public bool Contains(RealtimeEvent item)
     {
         return _messages.Contains(item);
     }
 
-    public void CopyTo(ConversationItem[] array, int arrayIndex)
+    public void CopyTo(RealtimeEvent[] array, int arrayIndex)
     {
         _messages.CopyTo(array, arrayIndex);
     }
 
-    public IEnumerator<ConversationItem> GetEnumerator()
+    public IEnumerator<RealtimeEvent> GetEnumerator()
     {
         return _messages.GetEnumerator();
     }
 
-    public int IndexOf(ConversationItem item)
+    public int IndexOf(RealtimeEvent item)
     {
         return _messages.IndexOf(item);
     }
 
-    public void Insert(int index, ConversationItem item)
+    public void Insert(int index, RealtimeEvent item)
     {
         _messages.Insert(index, item);
     }
 
-    public bool Remove(ConversationItem item)
+    public bool Remove(RealtimeEvent item)
     {
         return _messages.Remove(item);
     }
