@@ -20,11 +20,12 @@ public abstract class RealtimeAgent
 
     internal CancellationTokenSource _cts = new();
     internal Channel<RealtimeEvent> _outputChannel;
-    internal Channel<RealtimeEvent> _inputChannel;
+    //internal Channel<RealtimeEvent> _inputChannel;
 
     private readonly Channel<RealtimeEvent> _updates = Channel.CreateUnbounded<RealtimeEvent>();
 
     private readonly RealtimeEventObservable _realtimeEventObservable = new();
+    private bool _disposed;
 
 
     public string? Instructions { get; init; }
@@ -35,18 +36,18 @@ public abstract class RealtimeAgent
     public RealtimeAgent(
         ILogger? logger = null)
     {
-        _outputChannel = Channel.CreateUnbounded<RealtimeEvent>(new UnboundedChannelOptions
-        {
-            SingleReader = true,
-            SingleWriter = true
-        });
-        _inputChannel = Channel.CreateUnbounded<RealtimeEvent>(new UnboundedChannelOptions
-        {
-            SingleReader = true,
-            SingleWriter = true
-        });
+        //_outputChannel = Channel.CreateUnbounded<RealtimeEvent>(new UnboundedChannelOptions
+        //{
+        //    SingleReader = true,
+        //    SingleWriter = true
+        //});
+        //_inputChannel = Channel.CreateUnbounded<RealtimeEvent>(new UnboundedChannelOptions
+        //{
+        //    SingleReader = true,
+        //    SingleWriter = true
+        //});
         _logger = logger ?? NullLogger.Instance;
-
+        BeginProcessEntityUpdates();
     }
 
     public IObservable<RealtimeEvent> Watch() => _realtimeEventObservable;
@@ -67,7 +68,7 @@ public abstract class RealtimeAgent
                 !_updates.Reader.Completion.IsCompleted)
             {
                 var update = await _updates.Reader.ReadAsync(_cts.Token);
-                _entityUpdateObservable.OnUpdated(update);
+                _realtimeEventObservable.OnUpdated(update);
             }
         }
         catch (ObjectDisposedException)
@@ -86,7 +87,7 @@ public abstract class RealtimeAgent
         {
             // we complete the update queue and also send a complete signal to our observers.
             _updates.Writer.TryComplete();
-            _entityUpdateObservable.OnComplete();
+            _realtimeEventObservable.OnComplete();
         }
     }
 
