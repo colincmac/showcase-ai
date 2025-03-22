@@ -14,25 +14,27 @@ using System.ComponentModel;
 using Microsoft.Extensions.Options;
 using Azure.Communication;
 using Showcase.AudioOrchestration;
+using Showcase.Shared.AIExtensions;
+using Showcase.AI.Voice.Tools;
 
 var builder = WebApplication.CreateBuilder(args);
-//AppContext.SetSwitch("OpenAI.Experimental.EnableOpenTelemetry", true);
+AppContext.SetSwitch("OpenAI.Experimental.EnableOpenTelemetry", true);
 
 builder.AddServiceDefaults();
 
 builder.Services.AddEndpointsApiExplorer();
 
+// From Aspire
 builder.AddAzureOpenAIClient("openai");
 
 builder.Services.Configure<VoiceRagOptions>(
     builder.Configuration.GetSection(VoiceRagOptions.SectionName));
 
+builder.Services.AddSingleton<IAIToolHandler, ReferenceDataTools>();
+builder.Services.AddSingleton<IAIToolRegistry, AIToolRegistry>();
+
 var teamsAppId = builder.Configuration.GetValue<string>("TeamsAppId");
 var teamsAppIdentifier = new MicrosoftTeamsAppIdentifier(teamsAppId);
-
-CallAutomationClientOptions callautomationclientoptions = new CallAutomationClientOptions()
-{
-};
 
 builder.Services.AddSingleton(sp =>
 {
@@ -141,7 +143,7 @@ app.MapPost("/api/callbacks/{contextId}", (
 app.UseWebSockets();
 
 #pragma warning disable OPENAI002
-app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configurationOptions, AzureOpenAIClient openAIClient) =>
+app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configurationOptions, AzureOpenAIClient openAIClient, IAIToolRegistry toolRegistry) =>
 {
     if (context.WebSockets.IsWebSocketRequest)
     {
@@ -151,7 +153,8 @@ app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configur
 
             //var voiceClient = openAIClient.AsVoiceClient(config.AzureOpenAIDeploymentModelName, voiceClientLogger);
             var realtimeClient = openAIClient.GetRealtimeConversationClient(config.AzureOpenAIDeploymentModelName);
-            IList<AITool> tools = [AIFunctionFactory.Create(GetRoomCapacity)];
+
+            //IList<AITool> tools = [AIFunctionFactory.Create(GetRoomCapacity)];
 
             RealtimeSessionOptions sessionOptions = new()
             {
@@ -159,7 +162,7 @@ app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configur
                 Voice = ConversationVoice.Shimmer,
                 InputAudioFormat = ConversationAudioFormat.Pcm16,
                 OutputAudioFormat = ConversationAudioFormat.Pcm16,
-                Tools = tools,
+                Tools = toolRegistry.ToArray(),
                 //InputTranscriptionOptions = new()
                 //{
                 //// OpenAI realtime excepts raw audio in/out and uses another model for transcriptions in parallel

@@ -3,6 +3,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using OpenAI.RealtimeConversation;
+using Showcase.Shared.AIExtensions;
 using Showcase.Shared.AIExtensions.Realtime;
 using System;
 using System.Buffers;
@@ -21,6 +22,7 @@ public sealed class OpenAIRealtimeAgent : ConversationParticipant
     private readonly RealtimeConversationClient _aiClient;
     private readonly RealtimeSessionOptions _sessionOptions;
     private RealtimeConversationSession? _currentSession;
+    //private readonly IAIToolRegistry _aiToolRegistry;
     private static readonly ArrayPool<byte> _bufferPool = ArrayPool<byte>.Shared;
 
     internal Task ParticipantEventProcessing { get; private set; } = Task.CompletedTask;
@@ -32,6 +34,7 @@ public sealed class OpenAIRealtimeAgent : ConversationParticipant
     public OpenAIRealtimeAgent(
         RealtimeConversationClient aiClient,
         RealtimeSessionOptions sessionOptions,
+        //IAIToolRegistry aiToolRegistry,
         string? instructions = null,
         string? description = null,
         string? id = null,
@@ -39,6 +42,7 @@ public sealed class OpenAIRealtimeAgent : ConversationParticipant
     {
         _aiClient = aiClient;
         _sessionOptions = sessionOptions;
+        //_aiToolRegistry = aiToolRegistry;
 
         Instructions = instructions;
         Description = description;

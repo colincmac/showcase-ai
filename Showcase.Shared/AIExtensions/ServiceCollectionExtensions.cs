@@ -10,10 +10,10 @@ using System.Threading.Tasks;
 namespace Showcase.Shared.AIExtensions;
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddAIToolRegistry(this IServiceCollection services, IEnumerable<AIFunction>? tools = default)
-    {
-        return services.AddSingleton(new AIToolRegistry(tools ?? []));
-    }
+    //public static IServiceCollection AddAIToolRegistry(this IServiceCollection services, IEnumerable<AIFunction>? tools = default)
+    //{
+    //    return services.AddSingleton(new AIToolRegistry(tools ?? []));
+    //}
 
     public static IServiceCollection AddVoiceClient(this IServiceCollection services)
     {

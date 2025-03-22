@@ -20,14 +20,19 @@ builder.AddOpenTelemetryCollector("otelcollector", "../otelcollector/config.yaml
 
 //var cache = builder.AddRedis("cache");
 
+var existingOpenAIName = builder.AddParameter("existingOpenAIName");
+var existingOpenAIResourceGroup = builder.AddParameter("existingOpenAIResourceGroup");
+
 var openai = builder.ExecutionContext.IsPublishMode
     ? builder.AddAzureOpenAI("openai")
     : builder.AddConnectionString("openai");
 
+
+
 #pragma warning disable ASPIREHOSTINGPYTHON001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 var pythonPlugins = builder.AddPythonApp(
     name: "python-plugins",
-    projectDirectory: Path.Combine("..", "Python.Plugins"),
+    appDirectory: Path.Combine("..", "Python.Plugins"),
     scriptPath: "-m",
     virtualEnvironmentPath: "env",
     scriptArgs: ["uvicorn", "main:app"])

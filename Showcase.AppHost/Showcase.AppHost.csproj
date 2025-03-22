@@ -13,7 +13,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Gateway\Showecase.OcelotGateway\Showcase.OcelotGateway.csproj" />
     <ProjectReference Include="..\GitHub Copilot Agent\Showcase.GitHubCopilot.Agent\Showcase.GitHubCopilot.Agent.csproj" />
-    <ProjectReference Include="..\GitHub Copilot Agent\Showcase.GitHubCopilot.TubAgent\Showcase.GitHubCopilot.TubAgent.csproj" />
     <ProjectReference Include="..\SecEdgarAgent\SecEdgarAgent.csproj" />
     <ProjectReference Include="..\Showcase.ApiService\Showcase.ApiService.csproj" />
     <ProjectReference Include="..\Showcase.Web\Showcase.Web.csproj" />
@@ -22,11 +21,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.0.0" />
-    <PackageReference Include="Aspire.Hosting.Azure.CognitiveServices" Version="9.0.0" />
-    <PackageReference Include="Aspire.Hosting.Azure.CosmosDB" Version="9.0.0" />
-    <PackageReference Include="Aspire.Hosting.Python" Version="9.0.0" />
-    <PackageReference Include="Aspire.Hosting.Redis" Version="9.0.0" />
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.1.0" />
+    <PackageReference Include="Aspire.Hosting.Azure.CognitiveServices" Version="9.1.0" />
+    <PackageReference Include="Aspire.Hosting.Azure.CosmosDB" Version="9.1.0" />
+    <PackageReference Include="Aspire.Hosting.Python" Version="9.1.0" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="9.1.0" />
     <PackageReference Include="Azure.Provisioning.Communication" Version="1.0.0-beta.2" />
     <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.47.0-preview.0" />
   </ItemGroup>
