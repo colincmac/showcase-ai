@@ -1,186 +1,99 @@
-﻿#pragma warning disable OPENAI002
-
-using Microsoft.Extensions.AI;
+﻿using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
-using OpenAI.RealtimeConversation;
-using System;
-using System.Buffers;
-using System.Collections.Generic;
-using System.IO.Pipelines;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading;
+using Showcase.AudioOrchestration;
 using System.Threading.Channels;
-using System.Threading.Tasks;
-using static Showcase.Shared.AIExtensions.Realtime.Telemetry.OpenTelemetryConstants;
-using static Showcase.Shared.AIExtensions.Realtime.Telemetry.OpenTelemetryConstants.GenAI;
 
-namespace Showcase.AudioOrchestration;
-
-public class VoiceConversationParticipant : IDisposable
+public abstract class ConversationParticipant : IDisposable
 {
-    public string ParticipantId { get; set; }
-    public string? ParticipantName { get; init; }
+    internal ILogger _logger;
+    internal CancellationTokenSource _cts = new();
+    internal Channel<RealtimeEvent> _inboundChannel;
+    internal Channel<RealtimeEvent> _outboundChannel = Channel.CreateUnbounded<RealtimeEvent>();
+    private readonly RealtimeEventObservable _outgoingEventsObservable = new();
+    private bool _disposed;
 
-    public ChannelReader<BinaryData> Reader { get; init; }
+    public string Id { get; init; } = Guid.NewGuid().ToString();
+    public string? Name { get; init; }
 
-    private bool _gracefulClose;
-
-    private readonly Channel<BinaryData> _outputChannel;
-    private readonly Channel<BinaryData> _inputChannel;
-
-    private CancellationTokenSource _cts = new();
-    private static readonly ArrayPool<byte> _bufferPool = ArrayPool<byte>.Shared;
-
-    private readonly RealtimeConversationClient _aiClient;
-    private readonly ConversationSessionOptions _sessionOptions;
-    private readonly ILogger _logger;
-    private RealtimeConversationSession? _currentSession;
-
-    internal Task OutboundTask { get; private set; } = Task.CompletedTask;
-    internal Task InboundTask { get; private set; } = Task.CompletedTask;
-
-    public VoiceConversationParticipant(RealtimeConversationClient aiClient, ConversationSessionOptions sessionOptions, ILogger logger, string participantId, string? participantName = default)
+    public ConversationParticipant(
+        string? id = null,
+        string? name = null,
+        ILogger? logger = null)
     {
-        ParticipantId = participantId;
-        ParticipantName = participantName;
-        _outputChannel = Channel.CreateBounded<BinaryData>(new BoundedChannelOptions(100)
-        {
-            SingleReader = false,
-            SingleWriter = true,
-            FullMode = BoundedChannelFullMode.Wait
-        });
-        _inputChannel = Channel.CreateBounded<BinaryData>(new BoundedChannelOptions(100)
+        Id = id ?? Guid.NewGuid().ToString();
+        Name = name;
+        _inboundChannel = Channel.CreateUnbounded<RealtimeEvent>(new UnboundedChannelOptions
         {
             SingleReader = true,
             SingleWriter = false,
-            FullMode = BoundedChannelFullMode.Wait
         });
+        _logger = logger ?? NullLogger.Instance;
+        StartBroadcastingOutbound(_cts.Token);
     }
 
-    public async Task StartAsync(CancellationToken cancellationToken = default)
+    public IObservable<RealtimeEvent> Watch() => _outgoingEventsObservable;
+    public void SubscribeTo(ConversationParticipant participant) => participant.Watch().Subscribe(Send);
+
+    public virtual void Send(RealtimeEvent incomingEvent)
     {
-        _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-        var isReconnect = false;
-
-        if (_currentSession == null)
-        {
-            // Start the conversation session with the AI client and configure with options.
-            _currentSession = await _aiClient.StartConversationSessionAsync(_cts.Token);
-            await _currentSession.ConfigureSessionAsync(_sessionOptions, _cts.Token);
-        }
-        else
-        {
-            isReconnect = true;
-        }
-        OutboundTask = Task.Run(() => ProcessInbound(_cts.Token), _cts.Token);
-        InboundTask = Task.Run(() => ProcessOutboundAsync(_cts.Token), _cts.Token);
+        _inboundChannel.Writer.TryWrite(incomingEvent);
     }
 
-    public bool AcceptsDataType(WellKnownEventDataType modality)
+    public virtual async Task SendAsync(RealtimeEvent incomingEvent, CancellationToken cancellationToken)
     {
-        // Check if the modality is supported by the Participant channel.
-        return modality switch
-        {
-            WellKnownEventDataType.Text => true,
-            WellKnownEventDataType.Audio => true,
-            WellKnownEventDataType.Video => false,
-            WellKnownEventDataType.Metric => false,
-            _ => throw new NotSupportedException($"Data type {modality} is not supported by this AI.")
-        };
+        await _inboundChannel.Writer.WriteAsync(incomingEvent, cancellationToken);
     }
 
+    public abstract Task StartResponseAsync(CancellationToken cancellationToken = default);
 
 
-    public async Task SendAsync(BinaryData data, CancellationToken cancellationToken = default)
-    {
-        await _realtimeEventStream.Writer.WriteAsync(data, cancellationToken);
-    }
+    private void StartBroadcastingOutbound(CancellationToken cancellationToken) =>
+    Task<Task?>.Factory.StartNew(
+        () => BroadcastUpdates(cancellationToken),
+        cancellationToken,
+        TaskCreationOptions.LongRunning,
+        TaskScheduler.Default);
 
-    public void BroadcastTo(IEnumerable<IConversationParticipant> participants)
-    {
-    }
-
-    private async Task ProcessInbound(CancellationToken cancellationToken)
+    private async Task BroadcastUpdates(CancellationToken cancellationToken)
     {
         try
         {
-            while (!cancellationToken.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested ||
+                !_outboundChannel.Reader.Completion.IsCompleted)
             {
-                await foreach (var update in _realtimeEventStream.Reader.ReadAllAsync(cancellationToken))
-                {
-                    //Todo:
-                }
-
+                var update = await _outboundChannel.Reader.ReadAsync(cancellationToken);
+                _outgoingEventsObservable.OnUpdated(update);
             }
+        }
+        catch (ObjectDisposedException)
+        {
+            // we ignore disposed exceptions.
+        }
+        catch (OperationCanceledException)
+        {
+            // we ignore cancellation exceptions.
+        }
+        catch (ChannelClosedException)
+        {
+            // we ignore cancellation exceptions.
         }
         finally
         {
+            // we complete the update queue and also send a complete signal to our observers.
+            _outboundChannel.Writer.TryComplete();
+            _outgoingEventsObservable.OnComplete();
         }
     }
 
-    private async Task ProcessOutboundAsync(CancellationToken cancellationToken)
+    public virtual void Dispose()
     {
-        byte[] receiveBuffer = _bufferPool.Rent(4096);
-        
-        try
+        if (!_disposed)
         {
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                await foreach (var update in _currentSession.ReceiveUpdatesAsync(cancellationToken))
-                {
-                    // Write to participants
-                    _realtimeEventStream.Writer.WriteAsync(update.GetRawContent(), cancellationToken);
-                    
-                    //// Handle the updates
-                    //if (update is ConversationItemStreamingPartDeltaUpdate deltaUpdate)
-                    //{
-                    //    _logger.LogDebug("Delta Audio Transcript: {AudioTranscript}", deltaUpdate.AudioTranscript);
-                    //    _logger.LogDebug("Delta TextOnly Update: {Text}", deltaUpdate.Text);
-                    //    _logger.LogDebug("Delta Function Args: {FunctionArguments}", deltaUpdate.FunctionArguments);
-                    //    if (deltaUpdate.AudioBytes is not null)
-                    //        // Send data to web socket and other AI agents
-                    //        if (deltaUpdate.AudioTranscript is not null)
-                    //            continue; // Need to store the transcript to rehydrate the 
-                    //}
-
-
-                    //if (update is ConversationItemStreamingAudioTranscriptionFinishedUpdate transcriptionFinished)
-                    //{
-
-                    //    // {
-                    //    //  "event_id": "event_2122",
-                    //    //  "type": "conversation.item.input_audio_transcription.completed",
-                    //    //  "item_id": "msg_003",
-                    //    //  "content_index": 0,
-                    //    //  "transcript": "Hello, how are you?"
-                    //    // }
-                    //    _conversationTranscriptionHistory.Add(transcriptionFinished);
-                    //}
-                    //if (update is ConversationInputTranscriptionFinishedUpdate inputTranscriptionFinished)
-                    //{
-                    //    _conversationTranscriptionHistory.Add(inputTranscriptionFinished);
-                    //}
-
-                    //if (update is ConversationInputSpeechStartedUpdate speechStartedUpdate)
-                    //{
-                    //    _logger.LogDebug($"Voice activity detection started at {speechStartedUpdate.AudioStartTime} ms");
-                    //    //await mediaStreamingHandler.SendStopAudioCommand(cancellationToken).ConfigureAwait(false);
-                    //}
-                    //await _currentSession.HandleToolCallsAsync(update, tools.OfType<AIFunction>().ToList(), cancellationToken: cancellationToken).ConfigureAwait(false);
-                }
-            }
+            _inboundChannel.Writer.TryComplete();
+            _outboundChannel.Writer.TryComplete();
+            _cts.Cancel();
+            _cts.Dispose();
+            _disposed = true;
         }
-        finally
-        {
-        }
-    }
-    public void Dispose()
-    {
-        _cts.Cancel();
-        _cts.Dispose();
-        _realtimeEventStream.Writer.Complete();
     }
 }

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using OpenAI.RealtimeConversation;
 using Showcase.Shared.AIExtensions.Realtime;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -15,15 +16,18 @@ using static Showcase.Shared.AIExtensions.Realtime.Telemetry.OpenTelemetryConsta
 
 namespace Showcase.AudioOrchestration;
 
-public sealed class OpenAIRealtimeAgent : RealtimeAgent
+public sealed class OpenAIRealtimeAgent : ConversationParticipant
 {
     private readonly RealtimeConversationClient _aiClient;
     private readonly RealtimeSessionOptions _sessionOptions;
     private RealtimeConversationSession? _currentSession;
+    private static readonly ArrayPool<byte> _bufferPool = ArrayPool<byte>.Shared;
 
-    internal Task AIEventProcessing { get; private set; } = Task.CompletedTask;
+    internal Task ParticipantEventProcessing { get; private set; } = Task.CompletedTask;
     internal Task InternalEventProcessing { get; private set; } = Task.CompletedTask;
 
+    public string? Instructions { get; init; }
+    public string? Description { get; init; }
 
     public OpenAIRealtimeAgent(
         RealtimeConversationClient aiClient,
@@ -31,25 +35,27 @@ public sealed class OpenAIRealtimeAgent : RealtimeAgent
         string? instructions = null,
         string? description = null,
         string? id = null,
-        string? name = null)
+        string? name = null) : base(id, name)
     {
         _aiClient = aiClient;
         _sessionOptions = sessionOptions;
 
         Instructions = instructions;
         Description = description;
-        Id = id ?? Guid.NewGuid().ToString();
-        Name = name;
+        _inboundChannel = Channel.CreateBounded<RealtimeEvent>(new BoundedChannelOptions(1)
+        {
+            SingleReader = true,
+            SingleWriter = false,
+        });
     }
 
-    public override async IAsyncEnumerable<RealtimeEvent> StartResponseAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public override async Task StartResponseAsync(CancellationToken cancellationToken = default)
     {
-        AIEventProcessing = Task.Run(() => ProcessOpenAIResponses(cancellationToken), cancellationToken);
-        InternalEventProcessing = Task.Run(() => ProcessInternalResponses(cancellationToken), cancellationToken);
-        await foreach (var update in _outputChannel.Reader.ReadAllAsync(cancellationToken))
-        {
-            yield return update;
-        }
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var session = await GetOrStartSessionAsync(_cts.Token);
+        ParticipantEventProcessing = Task.Run(async () => await ProcessParticipantEventsAsync(session, _cts.Token), _cts.Token);
+        InternalEventProcessing = Task.Run(async () => await ProcessInboundEvents(session, _cts.Token), _cts.Token);
+        await Task.WhenAll(ParticipantEventProcessing, InternalEventProcessing);
     }
 
     private async Task<RealtimeConversationSession> GetOrStartSessionAsync(CancellationToken cancellationToken = default)
@@ -63,29 +69,54 @@ public sealed class OpenAIRealtimeAgent : RealtimeAgent
         return _currentSession;
     }
 
-    private async Task ProcessOpenAIResponses(CancellationToken cancellationToken)
+    private async Task ProcessParticipantEventsAsync(RealtimeConversationSession session, CancellationToken cancellationToken)
     {
-        var session = await GetOrStartSessionAsync(cancellationToken);
-        var tools = _sessionOptions.Tools?.OfType<AIFunction>().ToList();
-        await foreach (var update in session.ReceiveUpdatesAsync(cancellationToken))
+        try
         {
-            var realtimeEvent = ConvertToExternalEvent(update);
-            if(realtimeEvent is not null) await _outputChannel.Writer.WriteAsync(realtimeEvent, cancellationToken);
 
-            if(tools is not null)
-                await session.HandleToolCallsAsync(update, tools, cancellationToken: cancellationToken);
+            var tools = _sessionOptions.Tools?.OfType<AIFunction>().ToList();
+            await foreach (var update in session.ReceiveUpdatesAsync(cancellationToken))
+            {
+                var realtimeEvent = ConvertToExternalEvent(update);
+                if (realtimeEvent is not null) await _outboundChannel.Writer.WriteAsync(realtimeEvent, cancellationToken);
+
+                if (tools is not null)
+                    await session.HandleToolCallsAsync(update, tools, cancellationToken: cancellationToken);
+            }
+            
         }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Session {SessionId} was cancelled.", Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing participant events: {Message}", ex.Message);
+        }
+
     }
 
-    private async Task ProcessInternalResponses(CancellationToken cancellationToken)
+    private async Task ProcessInboundEvents(RealtimeConversationSession session, CancellationToken cancellationToken)
     {
-        var session = await GetOrStartSessionAsync(cancellationToken);
-        await foreach (var internalEvent in _inputChannel.Reader.ReadAllAsync(cancellationToken))
+        try
         {
-            if(internalEvent is RealtimeAudioEvent audioEvent) await session.SendInputAudioAsync(audioEvent.AudioData, cancellationToken);
+            await foreach (var internalEvent in _inboundChannel.Reader.ReadAllAsync(cancellationToken))
+            {
+                if (internalEvent is RealtimeAudioEvent audioEvent) await HandleAudioAsync(session, audioEvent, cancellationToken);
 
-            if(internalEvent is RealtimeMessageEvent chatEvent) await session.AddItemAsync(ConversationItem.CreateAssistantMessage([chatEvent.ChatMessageContent]), cancellationToken);
+                if (internalEvent is RealtimeMessageEvent chatEvent) await session.AddItemAsync(ConversationItem.CreateAssistantMessage([chatEvent.ChatMessageContent]), cancellationToken);
+            }
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing inbound events: {Message}", ex.Message);
+        }
+
+    }
+
+    private async ValueTask HandleAudioAsync(RealtimeConversationSession session, RealtimeAudioEvent audioEvent, CancellationToken cancellationToken)
+    {
+        await session.SendInputAudioAsync(audioEvent.AudioData, _cts.Token);
     }
 
     private RealtimeEvent? ConvertToExternalEvent(ConversationUpdate update)
@@ -102,13 +133,12 @@ public sealed class OpenAIRealtimeAgent : RealtimeAgent
 
             return new RealtimeAudioEvent(AudioData: deltaUpdate.AudioBytes, TranscriptText: deltaUpdate.AudioTranscript, ServiceEventType: deltaUpdate.Kind.ToString(), SourceId: Id);
         }
-        //if(update is ConversationInputSpeechStartedUpdate speechStartedUpdate)
-        //{
-        //    _logger.LogDebug("Delta Output Transcript: {AudioTranscript}", deltaUpdate.AudioTranscript);
-        //    _logger.LogDebug("Delta TextOnly Update: {Text}", deltaUpdate.Text);
+        if (update is ConversationInputSpeechStartedUpdate speechStartedUpdate)
+        {
+            _logger.LogDebug("Incomming audio to AI Agent. Stopping all outgoing audio");
 
-        //    return new RealtimeAudioEvent(AudioData: deltaUpdate.AudioBytes, TranscriptText: deltaUpdate.AudioTranscript, ServiceEventType: deltaUpdate.Kind.ToString(), SourceId: Id);
-        //}
+            return new RealtimeStopAudioEvent(ServiceEventType: speechStartedUpdate.Kind.ToString(), SourceId: Id);
+        }
         if (update is ConversationInputTranscriptionFinishedUpdate inputTranscriptionFinished)
         {
             _logger.LogDebug("Delta Input Transcript: {AudioTranscript}", inputTranscriptionFinished.Transcript);
@@ -139,5 +169,13 @@ public sealed class OpenAIRealtimeAgent : RealtimeAgent
             result.Tools.Add(tool);
         }
         return result;
+    }
+
+    public override void Dispose()
+    {
+        _currentSession?.Dispose();
+        _currentSession = null;
+
+        base.Dispose();
     }
 }

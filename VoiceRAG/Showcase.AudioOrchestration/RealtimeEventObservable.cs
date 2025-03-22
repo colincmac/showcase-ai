@@ -11,8 +11,6 @@ namespace Showcase.AudioOrchestration;
 public sealed class RealtimeEventObservable : IObservable<RealtimeEvent>
 {
     private readonly Lock _sync = new();
-    private readonly CancellationTokenSource _cts = new();
-    private readonly Channel<RealtimeEvent> _updates = Channel.CreateUnbounded<RealtimeEvent>();
     private ImmutableList<IObserver<RealtimeEvent>> _observers =
         ImmutableList<IObserver<RealtimeEvent>>.Empty;
 

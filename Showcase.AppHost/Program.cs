@@ -40,9 +40,9 @@ if (builder.ExecutionContext.IsRunMode && builder.Environment.IsDevelopment())
 
 #pragma warning restore ASPIREHOSTINGPYTHON001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-var gitHubAgent = builder.AddProject<Projects.Showcase_GitHubCopilot_Agent>("GitHubAgent")
-    .WithReference(openai)
-    .WithEnvironment("OPENAI_EXPERIMENTAL_ENABLE_OPEN_TELEMETRY", "true");
+//var gitHubAgent = builder.AddProject<Projects.Showcase_GitHubCopilot_Agent>("GitHubAgent")
+//    .WithReference(openai)
+//    .WithEnvironment("OPENAI_EXPERIMENTAL_ENABLE_OPEN_TELEMETRY", "true");
 
 var voiceRagAgent = builder.AddProject<Projects.Showcase_VoiceRagAgent>("VoiceRagAgent")
     .WithReference(openai)

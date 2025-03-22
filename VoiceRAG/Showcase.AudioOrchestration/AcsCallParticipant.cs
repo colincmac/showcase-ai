@@ -1,0 +1,148 @@
+﻿using Azure.Communication.CallAutomation;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
+using OpenAI.RealtimeConversation;
+using System;
+using System.Buffers;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Sockets;
+using System.Net.WebSockets;
+using System.Text;
+using System.Threading.Tasks;
+using static Showcase.Shared.AIExtensions.Realtime.Telemetry.OpenTelemetryConstants.GenAI;
+
+namespace Showcase.AudioOrchestration;
+
+public class AcsCallParticipant : ConversationParticipant
+{
+    private readonly WebSocket _socket;
+    private static readonly ArrayPool<byte> _bufferPool = ArrayPool<byte>.Shared;
+    // Buffer size used when reading from a WebSocket.
+    private const int BufferSize = 2048;
+
+    internal Task ParticipantEventProcessing { get; private set; } = Task.CompletedTask;
+    internal Task InternalEventProcessing { get; private set; } = Task.CompletedTask;
+
+    public AcsCallParticipant(
+        WebSocket socket,
+        string? id = null,
+        string? name = null) : base(id, name)
+    {
+        _socket = socket;
+    }
+
+    public override async Task StartResponseAsync(CancellationToken cancellationToken = default)
+    {
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        ParticipantEventProcessing = Task.Run(() => ProcessParticipantEventsAsync(_cts.Token), _cts.Token);
+        InternalEventProcessing = Task.Run(() => ProcessInboundEvents(_cts.Token), _cts.Token);
+
+        await  Task.WhenAll(ParticipantEventProcessing, InternalEventProcessing);
+    }
+
+    private async Task ProcessParticipantEventsAsync(CancellationToken cancellationToken)
+    {
+        var buffer = _bufferPool.Rent(BufferSize);
+
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested && _socket.State == WebSocketState.Open)
+            {
+                var segment = new ArraySegment<byte>(buffer);
+                var result = await _socket.ReceiveAsync(segment, cancellationToken);
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    _logger.LogInformation("Socket {SocketId} was closed: {CloseDescription}", Id, _socket.CloseStatusDescription);
+                    break;
+                }
+
+                var resultData = new byte[result.Count];
+                Array.Copy(buffer, resultData, result.Count);
+
+                if (TryGetAudioFromResponse(resultData) is RealtimeAudioEvent audioEvent)
+                {
+                    await _outboundChannel.Writer.WriteAsync(audioEvent, cancellationToken);
+                }
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+    private async Task ProcessInboundEvents(CancellationToken cancellationToken)
+    {
+        await foreach (var internalEvent in _inboundChannel.Reader.ReadAllAsync(cancellationToken))
+        {
+            if (internalEvent is RealtimeAudioEvent audioEvent) await SendAudioAsync(audioEvent, cancellationToken);
+
+            if (internalEvent is RealtimeStopAudioEvent stopAudioEvent) await SendStopAudioAsync(cancellationToken);
+        }
+    }
+
+    private async Task SendStopAudioAsync(CancellationToken cancellationToken)
+    {
+        var input = OutStreamingData.GetStopAudioForOutbound();
+        await SendCommandAsync(BinaryData.FromString(input), cancellationToken);
+    }
+
+    private async Task SendAudioAsync(RealtimeAudioEvent audioEvent, CancellationToken cancellationToken)
+    {
+        if(audioEvent.AudioData is null) return;
+        var input = ConvertInboundAudioToAcsEvent(audioEvent);
+        await SendCommandAsync(input, cancellationToken);
+    }
+
+    private async Task SendCommandAsync(BinaryData data, CancellationToken cancellationToken)
+    {
+        ArraySegment<byte> messageBytes = new(data.ToArray());
+
+        await _socket.SendAsync(
+            messageBytes,
+            WebSocketMessageType.Text, // TODO: extensibility for binary messages
+            endOfMessage: true,
+            cancellationToken);
+
+    }
+
+    //private async Task CloseSocketAsync(WebSocket socket, string socketName, CancellationToken token)
+    //{
+    //    if (socket?.State == WebSocketState.Open)
+    //    {
+    //        try
+    //        {
+    //            await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", token);
+    //            _logger.LogInformation("{SocketName} closed gracefully.", socketName);
+    //        }
+    //        catch (Exception ex)
+    //        {
+    //            _logger.LogError(ex, "Error while closing {SocketName}.", socketName);
+    //        }
+    //    }
+    //}
+
+    private BinaryData ConvertInboundAudioToAcsEvent(RealtimeAudioEvent audioIn)
+    {
+        var audio = OutStreamingData.GetAudioDataForOutbound(audioIn.AudioData.ToArray());
+        return BinaryData.FromString(audio);
+    }
+
+    private RealtimeAudioEvent? TryGetAudioFromResponse(byte[] audioOut)
+    {
+        string data = Encoding.UTF8.GetString(audioOut).TrimEnd('\0');
+
+        var input = StreamingData.Parse(data);
+        if(input is not AudioData audioData || audioData.IsSilent) return null;
+
+        return new RealtimeAudioEvent(AudioData: new BinaryData(audioData.Data), ServiceEventType: MediaKind.AudioData.ToString(), SourceId: Id);
+    }
+
+    public override void Dispose()
+    {
+        _socket.Dispose();
+
+        base.Dispose();
+    }
+}

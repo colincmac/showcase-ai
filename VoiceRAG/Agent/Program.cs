@@ -13,6 +13,7 @@ using Microsoft.Extensions.AI;
 using System.ComponentModel;
 using Microsoft.Extensions.Options;
 using Azure.Communication;
+using Showcase.AudioOrchestration;
 
 var builder = WebApplication.CreateBuilder(args);
 //AppContext.SetSwitch("OpenAI.Experimental.EnableOpenTelemetry", true);
@@ -140,7 +141,7 @@ app.MapPost("/api/callbacks/{contextId}", (
 app.UseWebSockets();
 
 #pragma warning disable OPENAI002
-app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configurationOptions, AzureOpenAIClient openAIClient, ILogger<OpenAIVoiceClient> voiceClientLogger, ILogger<AcsAIOutboundHandler> acsOutboundHandlerLogger) =>
+app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configurationOptions, AzureOpenAIClient openAIClient) =>
 {
     if (context.WebSockets.IsWebSocketRequest)
     {
@@ -148,8 +149,8 @@ app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configur
         {
             var config = configurationOptions.Value;
 
-            var voiceClient = openAIClient.AsVoiceClient(config.AzureOpenAIDeploymentModelName, voiceClientLogger);
-
+            //var voiceClient = openAIClient.AsVoiceClient(config.AzureOpenAIDeploymentModelName, voiceClientLogger);
+            var realtimeClient = openAIClient.GetRealtimeConversationClient(config.AzureOpenAIDeploymentModelName);
             IList<AITool> tools = [AIFunctionFactory.Create(GetRoomCapacity)];
 
             RealtimeSessionOptions sessionOptions = new()
@@ -169,8 +170,15 @@ app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configur
                 TurnDetectionOptions = ConversationTurnDetectionOptions.CreateServerVoiceActivityTurnDetectionOptions(0.5f, TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500)),
             };
             var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-
-            await voiceClient.StartConversationAsync(new AcsAIOutboundHandler(webSocket, logger: acsOutboundHandlerLogger), sessionOptions, cancellationToken: context.RequestAborted);
+            var acsParticipant = new AcsCallParticipant(webSocket, name: "CallerName");
+            var openAIParticipant = new OpenAIRealtimeAgent(realtimeClient, sessionOptions, name: "OpenAI");
+            openAIParticipant.SubscribeTo(acsParticipant);
+            acsParticipant.SubscribeTo(openAIParticipant);
+           
+            var task2 = acsParticipant.StartResponseAsync(context.RequestAborted);
+            var task1 = openAIParticipant.StartResponseAsync(context.RequestAborted);
+            await Task.WhenAll(task1, task2);
+            //await voiceClient.StartConversationAsync(new AcsAIOutboundHandler(webSocket, logger: acsOutboundHandlerLogger), sessionOptions, cancellationToken: context.RequestAborted);
         }
         catch (Exception ex)
         {

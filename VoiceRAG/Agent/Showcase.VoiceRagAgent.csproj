@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Showcase.ServiceDefaults\Showcase.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\Showcase.Shared\Showcase.Shared.csproj" />
+    <ProjectReference Include="..\Showcase.AudioOrchestration\Showcase.AudioOrchestration.csproj" />
   </ItemGroup>
 
 </Project>
