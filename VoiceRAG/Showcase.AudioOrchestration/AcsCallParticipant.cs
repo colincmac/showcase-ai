@@ -26,19 +26,22 @@ public class AcsCallParticipant : ConversationParticipant
 
     public AcsCallParticipant(
         WebSocket socket,
-        string? id = null,
-        string? name = null) : base(id, name)
+        string id,
+        string name, 
+        ILoggerFactory loggerFactory) : base(id, name)
     {
         _socket = socket;
+        _logger = loggerFactory.CreateLogger<AcsCallParticipant>();
     }
 
-    public override async Task StartResponseAsync(CancellationToken cancellationToken = default)
+    public override Task StartResponseAsync(CancellationToken cancellationToken = default)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        ParticipantEventProcessing = Task.Run(() => ProcessParticipantEventsAsync(_cts.Token), _cts.Token);
-        InternalEventProcessing = Task.Run(() => ProcessInboundEvents(_cts.Token), _cts.Token);
-
-        await  Task.WhenAll(ParticipantEventProcessing, InternalEventProcessing);
+        _logger.LogInformation("Starting ACS Call Participant {ParticipantId}", Id);
+        ParticipantEventProcessing = ProcessParticipantEventsAsync(_cts.Token);
+        InternalEventProcessing = ProcessInboundEvents(_cts.Token);
+        _logger.LogInformation("Started ACS Call Participant {ParticipantId}", Id);
+        return Task.WhenAll(ParticipantEventProcessing, InternalEventProcessing);
     }
 
     private async Task ProcessParticipantEventsAsync(CancellationToken cancellationToken)
@@ -62,6 +65,7 @@ public class AcsCallParticipant : ConversationParticipant
 
                 if (TryGetAudioFromResponse(resultData) is RealtimeAudioEvent audioEvent)
                 {
+                    _logger.LogInformation("Received audio event from socket {SocketId}", Id);
                     await _outboundChannel.Writer.WriteAsync(audioEvent, cancellationToken);
                 }
             }

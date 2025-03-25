@@ -32,7 +32,7 @@ public abstract class ConversationParticipant : IDisposable
     }
 
     public IObservable<RealtimeEvent> Watch() => _outgoingEventsObservable;
-    public void SubscribeTo(ConversationParticipant participant) => participant.Watch().Subscribe(Send);
+    public void SubscribeTo(ConversationParticipant participant) => participant.Watch().Subscribe(async evt => await SendAsync(evt, _cts.Token));
 
     public virtual void Send(RealtimeEvent incomingEvent)
     {

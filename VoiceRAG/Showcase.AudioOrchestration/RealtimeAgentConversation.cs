@@ -1,56 +1,48 @@
-﻿//using Microsoft.Extensions.Logging;
-//using Microsoft.Extensions.Logging.Abstractions;
-//using OpenAI.Chat;
-//using System;
-//using System.Collections.Generic;
-//using System.Diagnostics.Tracing;
-//using System.Linq;
-//using System.Net.WebSockets;
-//using System.Runtime.CompilerServices;
-//using System.Text;
-//using System.Threading.Channels;
-//using System.Threading.Tasks;
+﻿#pragma warning disable OPENAI002
 
-//namespace Showcase.AudioOrchestration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using OpenAI.Chat;
+using OpenAI.RealtimeConversation;
+using Showcase.Shared.AIExtensions.Realtime;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.Tracing;
+using System.Linq;
+using System.Net.WebSockets;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 
-//public abstract class RealtimeAgentConversation
-//{
-//    internal ILogger _logger;
-//    internal List<ConversationParticipant> _agents = new();
+namespace Showcase.AudioOrchestration;
 
-//    internal Channel<RealtimeEvent> _outputChannel;
-//    internal Channel<RealtimeEvent> _inputChannel;
+public class RealtimeAgentConversation
+{
+    internal ILogger _logger;
+    internal List<ConversationParticipant> _agents = new();
 
-//    public RealtimeAgentConversation(ILogger? logger = null)
-//    {
-//        _logger = logger ?? NullLogger.Instance;
+    public RealtimeAgentConversation(WebSocket webSocket, RealtimeConversationClient realtimeAIClient, RealtimeSessionOptions sessionOptions, ILoggerFactory loggerFactory)
+    {
+        _logger = loggerFactory.CreateLogger<RealtimeAgentConversation>();
+        var acsParticipant = new AcsCallParticipant(webSocket, name: "CallerName", id: "ACS ID", loggerFactory: loggerFactory);
+        var openAIParticipant = new OpenAIRealtimeAgent(realtimeAIClient, sessionOptions, name: "OpenAI", id: "ACS ID", loggerFactory: loggerFactory);
+        openAIParticipant.SubscribeTo(acsParticipant);
+        acsParticipant.SubscribeTo(openAIParticipant);
+        _agents.Add(acsParticipant);
+        _agents.Add(openAIParticipant);
+    }
 
-//    }
+    public async Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        await Task.WhenAll(_agents.Select(a => a.StartResponseAsync(cancellationToken))).ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+            {
+                _logger.LogError(t.Exception, "Error starting agents");
+            }
+        }, cancellationToken);
 
-//    public virtual void AddAgent(ConversationParticipant agent)
-//    {
-//        _agents.Add(agent);
-//    }
+    }
 
-//    public virtual void RemoveAgent(ConversationParticipant agent)
-//    {
-//        _agents.Remove(agent);
-//    }
-
-//    public virtual async ValueTask StartConversationAsync(
-//        WebSocket webSocket,
-//        CancellationToken cancellationToken = default)
-//    {
-//        await _inputChannel.Writer.WriteAsync(incomingEvent, cancellationToken);
-//    }
-
-//    public virtual IAsyncEnumerable<RealtimeEvent> ReceiveAsync(
-//        Stream stream,
-//        CancellationToken cancellationToken = default)
-//    {
-//        // This method should be overridden in derived classes to handle incoming events.
-//        throw new NotImplementedException("ReceiveAsync must be implemented in derived classes.");
-//    }
-
-
-//}
+}
