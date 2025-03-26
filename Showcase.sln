@@ -30,6 +30,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Showcase.AI.Voice", "VoiceR
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp1", "ConsoleApp1\ConsoleApp1.csproj", "{E1E6853A-6B3E-47F6-8817-7E6AD32E2C53}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Showcase.AI.Voice.Tests", "VoiceRAG\Showcase.AI.Voice.Tests\Showcase.AI.Voice.Tests.csproj", "{D6667327-39AB-44B6-95F0-F01367DD355D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -80,6 +82,10 @@ Global
 		{E1E6853A-6B3E-47F6-8817-7E6AD32E2C53}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E1E6853A-6B3E-47F6-8817-7E6AD32E2C53}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E1E6853A-6B3E-47F6-8817-7E6AD32E2C53}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D6667327-39AB-44B6-95F0-F01367DD355D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D6667327-39AB-44B6-95F0-F01367DD355D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D6667327-39AB-44B6-95F0-F01367DD355D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D6667327-39AB-44B6-95F0-F01367DD355D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -91,6 +97,7 @@ Global
 		{E6759681-0756-C29B-2E71-DCF7EBBF94D2} = {4DD328CC-1576-4B39-BD7F-DE372A44139D}
 		{A04700C3-C92D-DC01-912E-F1CCBD2E1095} = {5DD51B33-ED16-43D0-91D2-F6E7135C2F89}
 		{8486DA23-04F1-4F39-BED6-33FEE25E1F1D} = {4DD328CC-1576-4B39-BD7F-DE372A44139D}
+		{D6667327-39AB-44B6-95F0-F01367DD355D} = {4DD328CC-1576-4B39-BD7F-DE372A44139D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6BA72D8C-B1B0-4D6B-9574-0BECD602791F}

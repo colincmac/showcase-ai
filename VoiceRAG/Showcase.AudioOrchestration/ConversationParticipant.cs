@@ -16,8 +16,8 @@ public abstract class ConversationParticipant : IDisposable
     public string? Name { get; init; }
 
     public ConversationParticipant(
-        string? id = null,
-        string? name = null,
+        string? id,
+        string? name,
         ILogger? logger = null)
     {
         Id = id ?? Guid.NewGuid().ToString();
@@ -34,7 +34,7 @@ public abstract class ConversationParticipant : IDisposable
     }
 
     public IObservable<RealtimeEvent> Watch() => _outgoingEventsObservable;
-    public void SubscribeTo(ConversationParticipant participant) => participant.Watch().Subscribe(async evt => await SendAsync(evt, _cts.Token));
+    public void SubscribeTo(ConversationParticipant conversationParticipant) => conversationParticipant.Watch().Subscribe(async evt => await SendAsync(evt, _cts.Token));
 
     public virtual void Send(RealtimeEvent incomingEvent)
     {

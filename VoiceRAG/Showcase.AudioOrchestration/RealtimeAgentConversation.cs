@@ -29,8 +29,9 @@ public class RealtimeAgentConversation
         var openAIParticipant = new OpenAIRealtimeAgent(realtimeAIClient, sessionOptions, name: "OpenAI", id: "ACS ID", loggerFactory: loggerFactory);
         openAIParticipant.SubscribeTo(acsParticipant);
         acsParticipant.SubscribeTo(openAIParticipant);
-        _agents.Add(openAIParticipant);
         _agents.Add(acsParticipant);
+        _agents.Add(openAIParticipant);
+
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)

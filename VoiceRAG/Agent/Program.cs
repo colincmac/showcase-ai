@@ -109,7 +109,7 @@ app.MapPost("/api/incomingCall", async (
                 )
         {
             EnableBidirectional = true,
-            AudioFormat = AudioFormat.Pcm24KMono
+            AudioFormat = AudioFormat.Pcm24KMono,
         };
 
         var options = new AnswerCallOptions(incomingCallContext, callbackUri)
@@ -154,7 +154,7 @@ app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configur
             //var voiceClient = openAIClient.AsVoiceClient(config.AzureOpenAIDeploymentModelName, voiceClientLogger);
             var realtimeClient = openAIClient.GetRealtimeConversationClient(config.AzureOpenAIDeploymentModelName);
 
-            IList<AITool> tools = [AIFunctionFactory.Create(GetRoomCapacity)];
+            //IList<AITool> tools = [AIFunctionFactory.Create(GetRoomCapacity)];
 
             RealtimeSessionOptions sessionOptions = new()
             {
@@ -162,7 +162,7 @@ app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configur
                 Voice = ConversationVoice.Shimmer,
                 InputAudioFormat = ConversationAudioFormat.Pcm16,
                 OutputAudioFormat = ConversationAudioFormat.Pcm16,
-                Tools = tools, // toolRegistry.ToArray(),
+                Tools = toolRegistry.ToArray(),
                 //InputTranscriptionOptions = new()
                 //{
                 //// OpenAI realtime excepts raw audio in/out and uses another model for transcriptions in parallel
