@@ -2,6 +2,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using OpenAI.RealtimeConversation;
+using Showcase.Shared.AIExtensions.Realtime;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -18,8 +19,10 @@ public class AcsCallParticipant : ConversationParticipant
 {
     private readonly WebSocket _socket;
     private static readonly ArrayPool<byte> _bufferPool = ArrayPool<byte>.Shared;
+    private readonly SemaphoreSlim _clientSendSemaphore = new(initialCount: 1, maxCount: 1);
+
     // Buffer size used when reading from a WebSocket.
-    private const int BufferSize = 2048;
+    private const int BufferSize = 1024 * 2;
 
     internal Task ParticipantEventProcessing { get; private set; } = Task.CompletedTask;
     internal Task InternalEventProcessing { get; private set; } = Task.CompletedTask;
@@ -34,14 +37,16 @@ public class AcsCallParticipant : ConversationParticipant
         _logger = loggerFactory.CreateLogger<AcsCallParticipant>();
     }
 
-    public override Task StartResponseAsync(CancellationToken cancellationToken = default)
+    public override async Task StartResponseAsync(CancellationToken cancellationToken)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _logger.LogInformation("Starting ACS Call Participant {ParticipantId}", Id);
-        ParticipantEventProcessing = ProcessParticipantEventsAsync(_cts.Token);
-        InternalEventProcessing = ProcessInboundEvents(_cts.Token);
+
+        ParticipantEventProcessing = Task.Run(() => ProcessParticipantEventsAsync(_cts.Token), _cts.Token);
+        InternalEventProcessing = Task.Run(() => ProcessInboundEvents(_cts.Token), _cts.Token);
+
         _logger.LogInformation("Started ACS Call Participant {ParticipantId}", Id);
-        return Task.WhenAll(ParticipantEventProcessing, InternalEventProcessing);
+        await Task.WhenAll(ParticipantEventProcessing, InternalEventProcessing).ConfigureAwait(false);
     }
 
     private async Task ProcessParticipantEventsAsync(CancellationToken cancellationToken)
@@ -53,26 +58,32 @@ public class AcsCallParticipant : ConversationParticipant
             while (!cancellationToken.IsCancellationRequested && _socket.State == WebSocketState.Open)
             {
                 var segment = new ArraySegment<byte>(buffer);
-                var result = await _socket.ReceiveAsync(segment, cancellationToken);
+                var result = await _socket.ReceiveAsync(segment, cancellationToken).ConfigureAwait(false);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
                     _logger.LogInformation("Socket {SocketId} was closed: {CloseDescription}", Id, _socket.CloseStatusDescription);
                     break;
                 }
 
-                var resultData = new byte[result.Count];
-                Array.Copy(buffer, resultData, result.Count);
+                var resultData = buffer.Take(result.Count).ToArray();
 
-                if (TryGetAudioFromResponse(resultData) is RealtimeAudioEvent audioEvent)
+                if (TryGetAudioFromResponse(resultData) is RealtimeAudioEvent audioEvent && !audioEvent.IsEmpty)
                 {
-                    _logger.LogInformation("Received audio event from socket {SocketId}", Id);
-                    await _outboundChannel.Writer.WriteAsync(audioEvent, cancellationToken);
+                    await _outboundChannel.Writer.WriteAsync(audioEvent, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            _logger?.LogInformation("WebSocket receive operation was canceled.");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error receiving WebSocket messages.");
+        }
         finally
         {
-            ArrayPool<byte>.Shared.Return(buffer);
+            _bufferPool.Return(buffer);
         }
     }
 
@@ -80,52 +91,42 @@ public class AcsCallParticipant : ConversationParticipant
     {
         await foreach (var internalEvent in _inboundChannel.Reader.ReadAllAsync(cancellationToken))
         {
-            if (internalEvent is RealtimeAudioEvent audioEvent) await SendAudioAsync(audioEvent, cancellationToken);
+            if (internalEvent is RealtimeAudioEvent audioEvent) await SendAudioAsync(audioEvent, cancellationToken).ConfigureAwait(false);
 
-            if (internalEvent is RealtimeStopAudioEvent stopAudioEvent) await SendStopAudioAsync(cancellationToken);
+            if (internalEvent is RealtimeStopAudioEvent stopAudioEvent) await SendStopAudioAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
     private async Task SendStopAudioAsync(CancellationToken cancellationToken)
     {
         var input = OutStreamingData.GetStopAudioForOutbound();
-        await SendCommandAsync(BinaryData.FromString(input), cancellationToken);
+        await SendCommandAsync(BinaryData.FromString(input), cancellationToken).ConfigureAwait(false);
     }
 
     private async Task SendAudioAsync(RealtimeAudioEvent audioEvent, CancellationToken cancellationToken)
     {
         if(audioEvent.AudioData is null) return;
         var input = ConvertInboundAudioToAcsEvent(audioEvent);
-        await SendCommandAsync(input, cancellationToken);
+        await SendCommandAsync(input, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task SendCommandAsync(BinaryData data, CancellationToken cancellationToken)
     {
         ArraySegment<byte> messageBytes = new(data.ToArray());
-
-        await _socket.SendAsync(
+        await _clientSendSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _socket.SendAsync(
             messageBytes,
             WebSocketMessageType.Text, // TODO: extensibility for binary messages
             endOfMessage: true,
             cancellationToken);
-
+        }
+        finally
+        {
+            _clientSendSemaphore.Release();
+        }
     }
-
-    //private async Task CloseSocketAsync(WebSocket socket, string socketName, CancellationToken token)
-    //{
-    //    if (socket?.State == WebSocketState.Open)
-    //    {
-    //        try
-    //        {
-    //            await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", token);
-    //            _logger.LogInformation("{SocketName} closed gracefully.", socketName);
-    //        }
-    //        catch (Exception ex)
-    //        {
-    //            _logger.LogError(ex, "Error while closing {SocketName}.", socketName);
-    //        }
-    //    }
-    //}
 
     private BinaryData ConvertInboundAudioToAcsEvent(RealtimeAudioEvent audioIn)
     {
@@ -146,7 +147,7 @@ public class AcsCallParticipant : ConversationParticipant
     public override void Dispose()
     {
         _socket.Dispose();
-
         base.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

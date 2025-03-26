@@ -22,10 +22,12 @@ public abstract class ConversationParticipant : IDisposable
     {
         Id = id ?? Guid.NewGuid().ToString();
         Name = name;
+
         _inboundChannel = Channel.CreateUnbounded<RealtimeEvent>(new UnboundedChannelOptions
         {
             SingleReader = true,
             SingleWriter = false,
+            AllowSynchronousContinuations = false,
         });
         _logger = logger ?? NullLogger.Instance;
         StartBroadcastingOutbound(_cts.Token);
@@ -40,21 +42,21 @@ public abstract class ConversationParticipant : IDisposable
     }
 
     public virtual async Task SendAsync(RealtimeEvent incomingEvent, CancellationToken cancellationToken)
-    {
-        await _inboundChannel.Writer.WriteAsync(incomingEvent, cancellationToken);
+    { 
+         await  _inboundChannel.Writer.WriteAsync(incomingEvent, cancellationToken);
     }
 
     public abstract Task StartResponseAsync(CancellationToken cancellationToken = default);
 
 
-    private void StartBroadcastingOutbound(CancellationToken cancellationToken) =>
-    Task<Task?>.Factory.StartNew(
-        () => BroadcastUpdates(cancellationToken),
-        cancellationToken,
-        TaskCreationOptions.LongRunning,
-        TaskScheduler.Default);
+    private Task StartBroadcastingOutbound(CancellationToken cancellationToken) =>
+        Task<Task?>.Factory.StartNew(
+            () => BroadcastUpdatesAsync(cancellationToken),
+            cancellationToken,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
 
-    private async Task BroadcastUpdates(CancellationToken cancellationToken)
+    private async Task BroadcastUpdatesAsync(CancellationToken cancellationToken)
     {
         try
         {

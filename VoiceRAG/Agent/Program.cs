@@ -154,7 +154,7 @@ app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configur
             //var voiceClient = openAIClient.AsVoiceClient(config.AzureOpenAIDeploymentModelName, voiceClientLogger);
             var realtimeClient = openAIClient.GetRealtimeConversationClient(config.AzureOpenAIDeploymentModelName);
 
-            //IList<AITool> tools = [AIFunctionFactory.Create(GetRoomCapacity)];
+            IList<AITool> tools = [AIFunctionFactory.Create(GetRoomCapacity)];
 
             RealtimeSessionOptions sessionOptions = new()
             {
@@ -162,7 +162,7 @@ app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configur
                 Voice = ConversationVoice.Shimmer,
                 InputAudioFormat = ConversationAudioFormat.Pcm16,
                 OutputAudioFormat = ConversationAudioFormat.Pcm16,
-                Tools = toolRegistry.ToArray(),
+                Tools = tools, // toolRegistry.ToArray(),
                 //InputTranscriptionOptions = new()
                 //{
                 //// OpenAI realtime excepts raw audio in/out and uses another model for transcriptions in parallel
@@ -173,17 +173,9 @@ app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configur
                 TurnDetectionOptions = ConversationTurnDetectionOptions.CreateServerVoiceActivityTurnDetectionOptions(0.5f, TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500)),
             };
             var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-            //var acsParticipant = new AcsCallParticipant(webSocket, name: "CallerName", id: "ACS ID", loggerFactory: loggerFactory);
-            //var openAIParticipant = new OpenAIRealtimeAgent(realtimeClient, sessionOptions, name: "OpenAI", id: "ACS ID", loggerFactory: loggerFactory);
-            //openAIParticipant.SubscribeTo(acsParticipant);
-            //acsParticipant.SubscribeTo(openAIParticipant);
-            //await openAIParticipant.StartResponseAsync(context.RequestAborted);
 
-            //await acsParticipant.StartResponseAsync(context.RequestAborted);
             var conversation = new RealtimeAgentConversation(webSocket, realtimeClient, sessionOptions, loggerFactory);
             await conversation.StartAsync(context.RequestAborted);
-            //await Task.WhenAll(task1, task2);
-            //await voiceClient.StartConversationAsync(new AcsAIOutboundHandler(webSocket, logger: acsOutboundHandlerLogger), sessionOptions, cancellationToken: context.RequestAborted);
         }
         catch (Exception ex)
         {

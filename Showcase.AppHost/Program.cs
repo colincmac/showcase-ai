@@ -20,8 +20,8 @@ builder.AddOpenTelemetryCollector("otelcollector", "../otelcollector/config.yaml
 
 //var cache = builder.AddRedis("cache");
 
-var existingOpenAIName = builder.AddParameter("existingOpenAIName");
-var existingOpenAIResourceGroup = builder.AddParameter("existingOpenAIResourceGroup");
+//var existingOpenAIName = builder.AddParameter("existingOpenAIName");
+//var existingOpenAIResourceGroup = builder.AddParameter("existingOpenAIResourceGroup");
 
 var openai = builder.ExecutionContext.IsPublishMode
     ? builder.AddAzureOpenAI("openai")

@@ -37,7 +37,10 @@ public record RealtimeEvent(WellKnownEventType EventType, string ServiceEventTyp
 {
     public Guid EventId { get; init; } = Guid.CreateVersion7(DateTimeOffset.UtcNow);
 };
-public record RealtimeAudioEvent(BinaryData AudioData, string ServiceEventType, string SourceId, string? TranscriptText = null): RealtimeEvent(WellKnownEventType.RawAudio, ServiceEventType, SourceId);
+public record RealtimeAudioEvent(BinaryData AudioData, string ServiceEventType, string SourceId, string? TranscriptText = null): RealtimeEvent(WellKnownEventType.RawAudio, ServiceEventType, SourceId)
+{
+    public bool IsEmpty => AudioData.IsEmpty;
+};
 public record RealtimeMessageEvent(string ChatMessageContent, string ServiceEventType, string SourceId) : RealtimeEvent(WellKnownEventType.Message, ServiceEventType, SourceId);
 public record RealtimeTranscriptMessageEvent(string Transcription, string ServiceEventType, string SourceId) : RealtimeEvent(WellKnownEventType.TranscriptText, ServiceEventType, SourceId);
 

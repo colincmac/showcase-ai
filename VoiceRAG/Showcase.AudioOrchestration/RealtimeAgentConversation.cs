@@ -29,20 +29,12 @@ public class RealtimeAgentConversation
         var openAIParticipant = new OpenAIRealtimeAgent(realtimeAIClient, sessionOptions, name: "OpenAI", id: "ACS ID", loggerFactory: loggerFactory);
         openAIParticipant.SubscribeTo(acsParticipant);
         acsParticipant.SubscribeTo(openAIParticipant);
-        _agents.Add(acsParticipant);
         _agents.Add(openAIParticipant);
+        _agents.Add(acsParticipant);
     }
 
-    public async Task StartAsync(CancellationToken cancellationToken = default)
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await Task.WhenAll(_agents.Select(a => a.StartResponseAsync(cancellationToken))).ContinueWith(t =>
-        {
-            if (t.IsFaulted)
-            {
-                _logger.LogError(t.Exception, "Error starting agents");
-            }
-        }, cancellationToken);
-
+        await Task.WhenAll(_agents.Select(a => a.StartResponseAsync(cancellationToken)));
     }
-
 }

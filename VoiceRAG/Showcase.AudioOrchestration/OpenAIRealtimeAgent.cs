@@ -3,17 +3,9 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using OpenAI.RealtimeConversation;
-using Showcase.Shared.AIExtensions;
 using Showcase.Shared.AIExtensions.Realtime;
-using System;
-using System.Buffers;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading.Channels;
-using System.Threading.Tasks;
-using static Showcase.Shared.AIExtensions.Realtime.Telemetry.OpenTelemetryConstants.GenAI;
+
 
 namespace Showcase.AudioOrchestration;
 
@@ -21,9 +13,6 @@ public sealed class OpenAIRealtimeAgent : ConversationParticipant
 {
     private readonly RealtimeConversationClient _aiClient;
     private readonly RealtimeSessionOptions _sessionOptions;
-    private RealtimeConversationSession? _currentSession;
-    //private readonly IAIToolRegistry _aiToolRegistry;
-    private static readonly ArrayPool<byte> _bufferPool = ArrayPool<byte>.Shared;
 
     internal Task ParticipantEventProcessing { get; private set; } = Task.CompletedTask;
     internal Task InternalEventProcessing { get; private set; } = Task.CompletedTask;
@@ -31,7 +20,6 @@ public sealed class OpenAIRealtimeAgent : ConversationParticipant
     public OpenAIRealtimeAgent(
         RealtimeConversationClient aiClient,
         RealtimeSessionOptions sessionOptions,
-        //IAIToolRegistry aiToolRegistry,
         ILoggerFactory loggerFactory,
         string id,
         string name) : base(id, name)
@@ -39,61 +27,64 @@ public sealed class OpenAIRealtimeAgent : ConversationParticipant
         _aiClient = aiClient;
         _sessionOptions = sessionOptions;
         _logger = loggerFactory.CreateLogger<OpenAIRealtimeAgent>();
-        //_aiToolRegistry = aiToolRegistry;
-
-        //_inboundChannel = Channel.CreateBounded<RealtimeEvent>(new BoundedChannelOptions(1)
-        //{
-        //    SingleReader = true,
-        //    SingleWriter = false,
-        //});
     }
 
     public override async Task StartResponseAsync(CancellationToken cancellationToken = default)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _logger.LogInformation("Starting OpenAI Realtime Agent {AgentId} with session options: {SessionOptions}", Id, _sessionOptions);
-        await StartSessionAsync(_cts.Token);
-
-
-
-        _logger.LogInformation("Started OpenAI Realtime Agent {AgentId} with session options: {SessionOptions}", Id, _sessionOptions);
-        //await Task.WhenAll(ParticipantEventProcessing, InternalEventProcessing);
-    }
-
-    private async Task StartSessionAsync(CancellationToken cancellationToken )
-    {
-
-        _currentSession = await _aiClient.StartConversationSessionAsync(cancellationToken);
+        var session = await _aiClient.StartConversationSessionAsync(cancellationToken);
         var options = ToOpenAIConversationSessionOptions(_sessionOptions);
-        await _currentSession.ConfigureSessionAsync(options, cancellationToken);
-        
-        _logger.LogInformation("Session started with options: {SessionOptions}", _sessionOptions);
-        ParticipantEventProcessing = ProcessParticipantEventsAsync(_currentSession, _cts.Token);
-        InternalEventProcessing = ProcessInboundEvents(_currentSession, _cts.Token);
+        await session.ConfigureSessionAsync(options, cancellationToken);
+
+        _logger.LogInformation("Session started with options: {SessionOptions}", _sessionOptions.ToString());
+        ParticipantEventProcessing = Task.Run(() => ProcessParticipantEventsAsync(session, _cts.Token), _cts.Token);
+        InternalEventProcessing = Task.Run(() => ProcessInboundEvents(session, _cts.Token), _cts.Token);
+        _logger.LogInformation("Started OpenAI Realtime Agent {AgentId} with session options: {SessionOptions}", Id, _sessionOptions);
+
+        await Task.WhenAll(ParticipantEventProcessing, InternalEventProcessing).ConfigureAwait(false);
     }
-
-    //private async Task StartSessionResponse(CancellationToken cancellationToken)
-    //{
-    //    _currentSession ??= await GetOrStartSessionAsync(cancellationToken);
-
-    //    await _currentSession.StartResponseAsync(cancellationToken);
-    //}
 
     private async Task ProcessParticipantEventsAsync(RealtimeConversationSession session, CancellationToken cancellationToken)
     {
         try
         {
-            await session.StartResponseAsync(cancellationToken);
             var tools = _sessionOptions.Tools?.OfType<AIFunction>().ToList();
-
             await foreach (var update in session.ReceiveUpdatesAsync(cancellationToken))
             {
                 _logger.LogDebug("Received update: {Update}", update);
-                var realtimeEvent = ConvertToExternalEvent(update);
-                if (realtimeEvent is not null) await _outboundChannel.Writer.WriteAsync(realtimeEvent, cancellationToken);
 
-                //if (tools is not null)
-                //    await Showcase.Shared.AIExtensions.Realtime.OpenAIRealtimeExtensions.HandleToolCallsAsync(session, update, tools, cancellationToken: cancellationToken);
+                if (update is ConversationItemStreamingPartDeltaUpdate deltaUpdate)
+                {
+                    _logger.LogDebug("Delta Output Transcript: {AudioTranscript}", deltaUpdate.AudioTranscript);
+                    _logger.LogDebug("Delta TextOnly Update: {Text}", deltaUpdate.Text);
+
+                    var evt = new RealtimeAudioEvent(AudioData: deltaUpdate.AudioBytes, TranscriptText: deltaUpdate.AudioTranscript, ServiceEventType: deltaUpdate.Kind.ToString(), SourceId: Id);
+                    await _outboundChannel.Writer.WriteAsync(evt, cancellationToken);
+                }
+                if (update is ConversationInputSpeechStartedUpdate speechStartedUpdate)
+                {
+                    _logger.LogDebug("Incoming audio to AI Agent. Barge-in by stopping all in-transit outgoing audio");
+
+                    var evt = new RealtimeStopAudioEvent(ServiceEventType: speechStartedUpdate.Kind.ToString(), SourceId: Id);
+                    await _outboundChannel.Writer.WriteAsync(evt, cancellationToken);
+                }
+                if (update is ConversationInputTranscriptionFinishedUpdate inputTranscriptionFinished)
+                {
+                    _logger.LogDebug("Delta Input Transcript: {AudioTranscript}", inputTranscriptionFinished.Transcript);
+
+                    var evt = new RealtimeTranscriptMessageEvent(Transcription: inputTranscriptionFinished.Transcript, ServiceEventType: inputTranscriptionFinished.Kind.ToString(), SourceId: Id);
+                    await _outboundChannel.Writer.WriteAsync(evt, cancellationToken);
+                }
+
+                if (update is ConversationSessionConfiguredUpdate sessionConfigured)
+                {
+                    _logger.LogDebug("Session configured with options: {SessionOptions}", sessionConfigured.ToString());
+                    await session.StartResponseAsync(cancellationToken);
+                }
+
+                if (tools is not null)
+                    await Shared.AIExtensions.Realtime.OpenAIRealtimeExtensions.HandleToolCallsAsync(session, update, tools, cancellationToken: cancellationToken);
             }
         }
         
@@ -105,19 +96,21 @@ public sealed class OpenAIRealtimeAgent : ConversationParticipant
         {
             _logger.LogError(ex, "Error processing participant events: {Message}", ex.Message);
         }
-
     }
 
     private async Task ProcessInboundEvents(RealtimeConversationSession session, CancellationToken cancellationToken)
     {
         try
         {
+            //await _isReadyTcs.Task.ConfigureAwait(false);
 
             await foreach (var internalEvent in _inboundChannel.Reader.ReadAllAsync(cancellationToken))
             {
-                if (internalEvent is RealtimeAudioEvent audioEvent) await HandleAudioAsync(session, audioEvent, cancellationToken);
+                if (internalEvent is RealtimeAudioEvent audioEvent) 
+                    await HandleAudioAsync(session, audioEvent, cancellationToken);
 
-                if (internalEvent is RealtimeMessageEvent chatEvent) await session.AddItemAsync(ConversationItem.CreateAssistantMessage([chatEvent.ChatMessageContent]), cancellationToken);
+                if (internalEvent is RealtimeMessageEvent chatEvent) 
+                    await session.AddItemAsync(ConversationItem.CreateAssistantMessage([chatEvent.ChatMessageContent]), cancellationToken);
             }
         }
         catch (Exception ex)
@@ -129,37 +122,11 @@ public sealed class OpenAIRealtimeAgent : ConversationParticipant
 
     private async Task HandleAudioAsync(RealtimeConversationSession session, RealtimeAudioEvent audioEvent, CancellationToken cancellationToken)
     {
-        await session.SendInputAudioAsync(audioEvent.AudioData, _cts.Token);
+        using var audioStream = new MemoryStream(audioEvent.AudioData.ToArray());
+
+        await session.SendInputAudioAsync(audioStream, _cts.Token);
     }
 
-    private RealtimeEvent? ConvertToExternalEvent(ConversationUpdate update)
-    {
-        // Handle the conversation update here
-        // For example, you can log the update or process it further
-        _logger.LogInformation("Received conversation update: {Update}", update);
-
-        // Make sure to process audio first
-        if(update is ConversationItemStreamingPartDeltaUpdate deltaUpdate)
-        {
-            _logger.LogDebug("Delta Output Transcript: {AudioTranscript}", deltaUpdate.AudioTranscript);
-            _logger.LogDebug("Delta TextOnly Update: {Text}", deltaUpdate.Text);
-
-            return new RealtimeAudioEvent(AudioData: deltaUpdate.AudioBytes, TranscriptText: deltaUpdate.AudioTranscript, ServiceEventType: deltaUpdate.Kind.ToString(), SourceId: Id);
-        }
-        if (update is ConversationInputSpeechStartedUpdate speechStartedUpdate)
-        {
-            _logger.LogDebug("Incoming audio to AI Agent. Stopping all outgoing audio");
-
-            return new RealtimeStopAudioEvent(ServiceEventType: speechStartedUpdate.Kind.ToString(), SourceId: Id);
-        }
-        if (update is ConversationInputTranscriptionFinishedUpdate inputTranscriptionFinished)
-        {
-            _logger.LogDebug("Delta Input Transcript: {AudioTranscript}", inputTranscriptionFinished.Transcript);
-
-            return new RealtimeTranscriptMessageEvent(Transcription: inputTranscriptionFinished.Transcript,  ServiceEventType: inputTranscriptionFinished.Kind.ToString(), SourceId: Id);
-        }
-        return null;
-    }
 
     private static ConversationSessionOptions ToOpenAIConversationSessionOptions(RealtimeSessionOptions? options)
     {
@@ -186,8 +153,8 @@ public sealed class OpenAIRealtimeAgent : ConversationParticipant
 
     public override void Dispose()
     {
-        _currentSession?.Dispose();
-        _currentSession = null;
+        //_currentSession?.Dispose();
+        //_currentSession = null;
 
         base.Dispose();
     }

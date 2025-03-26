@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Channels;
@@ -14,8 +15,10 @@ public sealed class RealtimeEventObservable : IObservable<RealtimeEvent>
     private ImmutableList<IObserver<RealtimeEvent>> _observers =
         ImmutableList<IObserver<RealtimeEvent>>.Empty;
 
-    public IDisposable Subscribe(IObserver<RealtimeEvent> observer)
+
+    public IDisposable Subscribe([NotNull] IObserver<RealtimeEvent> observer)
     {
+
         lock (_sync)
         {
             _observers = _observers.Add(observer);
