@@ -67,7 +67,7 @@ public class AcsCallParticipant : ConversationParticipant
 
                 var resultData = buffer.Take(result.Count).ToArray();
 
-                if (TryGetAudioFromResponse(resultData) is RealtimeAudioEvent audioEvent && !audioEvent.IsEmpty)
+                if (TryGetAudioFromResponse(resultData) is RealtimeAudioDeltaEvent audioEvent && !audioEvent.IsEmpty)
                 {
                     await _outboundChannel.Writer.WriteAsync(audioEvent, cancellationToken).ConfigureAwait(false);
                 }
@@ -91,7 +91,7 @@ public class AcsCallParticipant : ConversationParticipant
     {
         await foreach (var internalEvent in _inboundChannel.Reader.ReadAllAsync(cancellationToken))
         {
-            if (internalEvent is RealtimeAudioEvent audioEvent) await SendAudioAsync(audioEvent, cancellationToken).ConfigureAwait(false);
+            if (internalEvent is RealtimeAudioDeltaEvent audioEvent) await SendAudioAsync(audioEvent, cancellationToken).ConfigureAwait(false);
 
             if (internalEvent is RealtimeStopAudioEvent stopAudioEvent) await SendStopAudioAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -103,7 +103,7 @@ public class AcsCallParticipant : ConversationParticipant
         await SendCommandAsync(BinaryData.FromString(input), cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task SendAudioAsync(RealtimeAudioEvent audioEvent, CancellationToken cancellationToken)
+    private async Task SendAudioAsync(RealtimeAudioDeltaEvent audioEvent, CancellationToken cancellationToken)
     {
         if(audioEvent.AudioData is null) return;
         var input = ConvertInboundAudioToAcsEvent(audioEvent);
@@ -128,20 +128,20 @@ public class AcsCallParticipant : ConversationParticipant
         }
     }
 
-    private BinaryData ConvertInboundAudioToAcsEvent(RealtimeAudioEvent audioIn)
+    private BinaryData ConvertInboundAudioToAcsEvent(RealtimeAudioDeltaEvent audioIn)
     {
         var audio = OutStreamingData.GetAudioDataForOutbound(audioIn.AudioData.ToArray());
         return BinaryData.FromString(audio);
     }
 
-    private RealtimeAudioEvent? TryGetAudioFromResponse(byte[] audioOut)
+    private RealtimeAudioDeltaEvent? TryGetAudioFromResponse(byte[] audioOut)
     {
         string data = Encoding.UTF8.GetString(audioOut).TrimEnd('\0');
 
         var input = StreamingData.Parse(data);
         if(input is not AudioData audioData || audioData.IsSilent) return null;
 
-        return new RealtimeAudioEvent(AudioData: new BinaryData(audioData.Data), ServiceEventType: MediaKind.AudioData.ToString(), SourceId: Id);
+        return new RealtimeAudioDeltaEvent(AudioData: new BinaryData(audioData.Data), ServiceEventType: MediaKind.AudioData.ToString(), SourceId: Id);
     }
 
     public override void Dispose()

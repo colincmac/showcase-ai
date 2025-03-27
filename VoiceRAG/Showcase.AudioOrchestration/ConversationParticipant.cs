@@ -5,10 +5,10 @@ using System.Threading.Channels;
 
 public abstract class ConversationParticipant : IDisposable
 {
-    internal ILogger _logger;
-    internal CancellationTokenSource _cts = new();
-    internal Channel<RealtimeEvent> _inboundChannel;
-    internal Channel<RealtimeEvent> _outboundChannel = Channel.CreateUnbounded<RealtimeEvent>();
+    protected ILogger _logger;
+    protected CancellationTokenSource _cts = new();
+    protected Channel<RealtimeEvent> _inboundChannel;
+    protected Channel<RealtimeEvent> _outboundChannel = Channel.CreateUnbounded<RealtimeEvent>();
     private readonly RealtimeEventObservable _outgoingEventsObservable = new();
     private bool _disposed;
 
