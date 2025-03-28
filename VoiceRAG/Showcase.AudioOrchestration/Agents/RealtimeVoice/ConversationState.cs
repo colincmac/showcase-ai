@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+﻿#pragma warning disable OPENAI002
+
+using Microsoft.Extensions.Logging;
+using OpenAI.RealtimeConversation;
 using Showcase.AudioOrchestration;
 using System;
 using System.Collections.Generic;
@@ -9,19 +12,6 @@ using System.Threading.Tasks;
 namespace Showcase.AI.Voice.Agents.RealtimeVoice;
 
 
-//public record Transition(
-//    string NextStep,
-//    Func<RealtimeMessageEvent, bool> Condition
-//);
-
-//public record ConversationStep(
-//    string Id,
-//    string Description,
-//    List<string> Instructions,
-//    List<string> Examples,
-//    List<Transition> Transitions
-//);
-
 public class ConversationState
 {
     // Index of the current step in the process.
@@ -30,24 +20,27 @@ public class ConversationState
     public Dictionary<string, object> Data { get; } = [];
 }
 
-public abstract class ProcessStep
+public abstract class ProcessStep<TState>
 {
     public string StepName { get; }
     protected ProcessStep(string stepName) => StepName = stepName;
+
+    public string SystemMessage { get; set; } = string.Empty;
+
     // Execute the step. Implementations should send a prompt,
     // wait for user input, update state, etc.
-    public abstract Task ExecuteAsync(ConversationState state, ConversationParticipant participant, CancellationToken cancellationToken);
+    public abstract Task ExecuteAsync(TState state, ConversationParticipant participant, CancellationToken cancellationToken);
 }
 
-public class GreetingStep : ProcessStep
+public class GreetingStep : ProcessStep<ConversationState>
 {
     public GreetingStep() : base("Greeting") { }
 
     public override async Task ExecuteAsync(ConversationState state, ConversationParticipant participant, CancellationToken cancellationToken)
     {
         // Send a greeting message.
-        var greeting = new RealtimeMessageEvent("Hello! Welcome to our IVR service. How may I assist you today?");
-        await participant.SendAsync(greeting, cancellationToken);
+        var msg = new RealtimeMessageEvent(["# "], ConversationMessageRole.System.ToString());
+        await participant.SendAsync(msg, cancellationToken);
 
         // Wait for the user’s transcript input.
         var userResponse = await WaitForTranscriptAsync(participant, cancellationToken);
@@ -65,7 +58,7 @@ public class GreetingStep : ProcessStep
         throw new NotSupportedException("Participant does not support inbound event waiting.");
     }
 }
-public class AskAccountNumberStep : ProcessStep
+public class AskAccountNumberStep : ProcessStep<ConversationState>
 {
     public AskAccountNumberStep() : base("AskAccountNumber") { }
 
@@ -89,12 +82,12 @@ public class AskAccountNumberStep : ProcessStep
 }
 // Orchestrates the multi-step process.
 // (This is our “actor” for the conversation process; its internal state is persistent.)
-public class ConversationProcess
+public class ConversationProcess: ProcessStep<ConversationState>
 {
-    private readonly List<ProcessStep> _steps;
+    private readonly List<ProcessStep<ConversationState>> _steps;
     public ConversationState State { get; } = new ConversationState();
 
-    public ConversationProcess(List<ProcessStep> steps) => _steps = steps;
+    public ConversationProcess(List<ProcessStep<ConversationState>> steps) => _steps = steps;
 
     // Execute each step sequentially until the process is complete.
     public async Task RunAsync(ConversationParticipant participant, CancellationToken cancellationToken)

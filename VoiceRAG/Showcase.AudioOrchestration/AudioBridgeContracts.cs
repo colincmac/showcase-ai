@@ -52,10 +52,10 @@ public record RealtimeAudioDeltaEvent(BinaryData AudioData, string? TranscriptTe
 };
 
 [JsonDerivedType(typeof(RealtimeMessageEvent), "ChatMessage")]
-public record RealtimeMessageEvent(string ChatMessageContent) : RealtimeEvent
+public record RealtimeMessageEvent(IEnumerable<string> ChatMessageContent, string ConversationMessageRole) : RealtimeEvent
 {
     public override string EventType => "ChatMessage";
-    public bool IsEmpty => string.IsNullOrWhiteSpace(ChatMessageContent);
+    public bool IsEmpty => !ChatMessageContent.Any();
 }
 
 [JsonDerivedType(typeof(RealtimeTranscriptMessageEvent), "TranscriptText")]
