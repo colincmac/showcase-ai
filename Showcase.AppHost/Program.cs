@@ -51,7 +51,8 @@ if (builder.ExecutionContext.IsRunMode && builder.Environment.IsDevelopment())
 
 var voiceRagAgent = builder.AddProject<Projects.Showcase_VoiceRagAgent>("VoiceRagAgent")
     .WithReference(openai)
-    .WithEnvironment("OPENAI_EXPERIMENTAL_ENABLE_OPEN_TELEMETRY", "true");
+    .WithEnvironment("OPENAI_EXPERIMENTAL_ENABLE_OPEN_TELEMETRY", "true")
+    .WithDaprSidecar();
 
 //builder.AddProject<Projects.SecEdgarAgent>("secedgaragent")
 //    .WithReference(openai)

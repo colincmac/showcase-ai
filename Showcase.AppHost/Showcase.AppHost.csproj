@@ -27,6 +27,7 @@
     <PackageReference Include="Aspire.Hosting.Python" Version="9.1.0" />
     <PackageReference Include="Aspire.Hosting.Redis" Version="9.1.0" />
     <PackageReference Include="Azure.Provisioning.Communication" Version="1.0.0-beta.2" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Dapr" Version="9.3.0" />
     <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.47.0-preview.0" />
   </ItemGroup>
 

@@ -1,26 +1,40 @@
 using Azure.AI.OpenAI;
+using Azure.Communication;
 using Azure.Communication.CallAutomation;
 using Azure.Messaging;
 using Azure.Messaging.EventGrid;
 using Azure.Messaging.EventGrid.SystemEvents;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
-using System.ComponentModel.DataAnnotations;
-using Showcase.Shared.AIExtensions.Realtime;
-using Showcase.VoiceRagAgent;
-using OpenAI.RealtimeConversation;
 using Microsoft.Extensions.AI;
-using System.ComponentModel;
 using Microsoft.Extensions.Options;
-using Azure.Communication;
+using Microsoft.SemanticKernel;
+#pragma warning disable SKEXP0080 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+using Newtonsoft.Json;
+using OpenAI.RealtimeConversation;
+using Showcase.AI.Voice.Tools;
 using Showcase.AudioOrchestration;
 using Showcase.Shared.AIExtensions;
-using Showcase.AI.Voice.Tools;
+using Showcase.Shared.AIExtensions.Realtime;
+using Showcase.VoiceRagAgent;
+using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 
 var builder = WebApplication.CreateBuilder(args);
 AppContext.SetSwitch("OpenAI.Experimental.EnableOpenTelemetry", true);
 
 builder.AddServiceDefaults();
+
+// Actor Experimental
+builder.Services.AddDaprClient();
+builder.Services.AddKernel();
+
+// Configure Dapr
+builder.Services.AddActors(static options =>
+{
+    // Register the actors required to run Processes
+    options.AddProcessActors();
+});
 
 builder.Services.AddEndpointsApiExplorer();
 
@@ -67,6 +81,8 @@ if (string.IsNullOrEmpty(appBaseUrl))
     appBaseUrl = $"https://{websiteHostName}";
     Console.WriteLine($"appBaseUrl :{appBaseUrl}");
 }
+
+app.MapActorsHandlers();
 
 app.MapGet("/", () => "Hello ACS CallAutomation!");
 

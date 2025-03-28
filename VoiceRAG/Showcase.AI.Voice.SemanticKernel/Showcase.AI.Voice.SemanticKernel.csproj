@@ -7,6 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Dapr.Actors.AspNetCore" Version="1.15.2" />
+    <PackageReference Include="Dapr.AspNetCore" Version="1.15.2" />
+    <PackageReference Include="Microsoft.SemanticKernel.Process.Core" Version="1.44.0-alpha" />
+    <PackageReference Include="Microsoft.SemanticKernel.Process.Runtime.Dapr" Version="1.44.0-alpha" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Showcase.AudioOrchestration\Showcase.AI.Voice.csproj" />
   </ItemGroup>
 

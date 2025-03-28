@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Showcase.ServiceDefaults\Showcase.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\Showcase.Shared\Showcase.Shared.csproj" />
+    <ProjectReference Include="..\Showcase.AI.Voice.SemanticKernel\Showcase.AI.Voice.SemanticKernel.csproj" />
     <ProjectReference Include="..\Showcase.AudioOrchestration\Showcase.AI.Voice.csproj" />
   </ItemGroup>
 
