@@ -19,4 +19,10 @@
     <ProjectReference Include="..\VoiceRAG\Showcase.AudioOrchestration\Showcase.AI.Voice.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="appsettings.Development.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

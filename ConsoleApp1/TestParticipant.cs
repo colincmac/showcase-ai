@@ -1,5 +1,6 @@
 ﻿using Showcase.AudioOrchestration;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,7 +11,6 @@ namespace ConsoleApp1;
 public class TestParticipant : ConversationParticipant
 {
     SpeakerOutput speakerOutput = new();
-
     public TestParticipant() : base("local", "local")
     {
     }
@@ -24,10 +24,31 @@ public class TestParticipant : ConversationParticipant
             if (internalEvent is RealtimeStopAudioEvent stopAudioEvent) await SendStopAudioAsync(cancellationToken).ConfigureAwait(false);
         }
     }
+
+    public async Task ProcessParticipantEventsAsync(CancellationToken cancellationToken)
+    {
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(1024 * 16);
+        MicrophoneAudioStream microphoneInput = MicrophoneAudioStream.Start();
+
+        while (true)
+        {
+            int bytesRead = await microphoneInput.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
+            if (bytesRead == 0)
+            {
+                break;
+            }
+            ReadOnlyMemory<byte> audioMemory = buffer.AsMemory(0, bytesRead);
+            BinaryData audioData = BinaryData.FromBytes(audioMemory);
+
+            var audioEvent = new RealtimeAudioDeltaEvent(AudioData: audioData); // Replace with actual audio data
+            await _outboundChannel.Writer.WriteAsync(audioEvent, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     public Task SendAudioAsync(RealtimeAudioDeltaEvent audioEvent, CancellationToken cancellationToken)
     {
         // Process the audio event
-        
+        if(audioEvent.IsEmpty) return Task.CompletedTask;
         speakerOutput.EnqueueForPlayback(audioEvent.AudioData);
         return Task.CompletedTask;
     }
@@ -40,13 +61,7 @@ public class TestParticipant : ConversationParticipant
     public override async Task StartResponseAsync(CancellationToken cancellationToken = default)
     {
             var inbound = Task.Run(() => ProcessInboundEventsAsync(cancellationToken), cancellationToken);
-            var outboud = Task.Run(async () =>
-            {
-                using MicrophoneAudioStream microphoneInput = MicrophoneAudioStream.Start();
-                var data = await BinaryData.FromStreamAsync(microphoneInput, cancellationToken).ConfigureAwait(false);
-                var audioEvent = new RealtimeAudioDeltaEvent(data);
-                await _outboundChannel.Writer.WriteAsync(audioEvent, cancellationToken).ConfigureAwait(false);
-            });
-        await Task.WhenAll(inbound, outboud).ConfigureAwait(false);
+            var outbound = Task.Run(() => ProcessParticipantEventsAsync(cancellationToken), cancellationToken);
+        await Task.WhenAll(inbound, outbound).ConfigureAwait(false);
     }
 }

@@ -48,7 +48,7 @@ public abstract record RealtimeEvent()
 public record RealtimeAudioDeltaEvent(BinaryData AudioData, string? TranscriptText = null) : RealtimeEvent
 {
     public override string EventType => "RawAudio";
-    public bool IsEmpty => AudioData.IsEmpty;
+    public bool IsEmpty => AudioData is null || AudioData.IsEmpty;
 };
 
 [JsonDerivedType(typeof(RealtimeMessageEvent), "ChatMessage")]
