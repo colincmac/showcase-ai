@@ -1,50 +1,87 @@
 ﻿#pragma warning disable OPENAI002
+using Azure.AI.OpenAI;
+using Azure.Identity;
+using ConsoleApp1;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel;
+using OpenAI.RealtimeConversation;
+using Showcase.AI.Voice.SemanticKernel;
+using Showcase.AI.Voice.Tools;
 using Showcase.AudioOrchestration;
-using System.Net.WebSockets;
+using Showcase.Shared.AIExtensions.Realtime;
+using System.ClientModel;
 using System.IO;
+using System.IO.Pipes;
+using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
-using System.IO.Pipes;
-using OpenAI.RealtimeConversation;
-using ConsoleApp1;
-using Azure.AI.OpenAI;
-using System.ClientModel;
 
 Console.WriteLine("Hello, World!");
+var kernel = Kernel.CreateBuilder().Build();
+var loggerFactory = new LoggerFactory();
+// Add Appsettings.json into configuration
 
-SpeakerOutput speakerOutput = new();
+var configuration = new ConfigurationBuilder()
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true)
+    .Build();
 
-RealtimeConversationClient client = GetConfiguredClient();
+await StartAsync();
 
-using MicrophoneAudioStream microphoneInput = MicrophoneAudioStream.Start();
-
-RealtimeAgentConversation conv = new RealtimeAgentConversation(null, null, null, null);
-
-static async Task Start(string[] args)
+async Task StartAsync()
 {
-    // First, we create a client according to configured environment variables (see end of file) and then start
-    // a new conversation session.
-    RealtimeConversationClient client = GetConfiguredClient();
-    using RealtimeConversationSession session = await client.StartConversationSessionAsync();
-
-    // We'll add a simple function tool that enables the model to interpret user input to figure out when it
-    // might be a good time to stop the interaction.
-    //ConversationFunctionTool finishConversationTool = new()
-    //{
-    //    Name = "user_wants_to_finish_conversation",
-    //    Description = "Invoked when the user says goodbye, expresses being finished, or otherwise seems to want to stop the interaction.",
-    //    Parameters = BinaryData.FromString("{}")
-    //};
-
+    RealtimeConversationClient client = GetConfiguredClientForAzureOpenAIWithEntra();
     // Now we configure the session using the tool we created along with transcription options that enable input
     // audio transcription with whisper.
-    await session.ConfigureSessionAsync(new ConversationSessionOptions()
+    var cts = new CancellationTokenSource();
+    var options = new RealtimeSessionOptions()
     {
+        ToolChoice = ConversationToolChoice.CreateAutoToolChoice(),
+        Tools = [AIFunctionFactory.Create(() => { }, name: "user_wants_to_finish_conversation", description: "Invoked when the user says goodbye, expresses being finished, or otherwise seems to want to stop the interaction.")],
         InputTranscriptionOptions = new()
         {
             Model = "whisper-1",
         },
-    });
+    };
+    var localParticipant = new TestParticipant();
+    var aiParticipant = new OpenAIRealtimeAgent(client, options, loggerFactory, "aiLocal", "aiLocal");
+
+    localParticipant.SubscribeTo(aiParticipant);
+    aiParticipant.SubscribeTo(localParticipant);
+    await Task.WhenAll(localParticipant.StartResponseAsync(cts.Token), aiParticipant.StartResponseAsync(cts.Token));
+
+}
+
+static async Task Start()
+{
+    // First, we create a client according to configured environment variables (see end of file) and then start
+    // a new conversation session.
+    RealtimeConversationClient client = GetConfiguredClientForAzureOpenAIWithEntra("https://ai-cmccullougheastus2991372611389.openai.azure.com", "gpt-4o-realtime-preview");
+    using RealtimeConversationSession session = await client.StartConversationSessionAsync();
+
+    // We'll add a simple function tool that enables the model to interpret user input to figure out when it
+    // might be a good time to stop the interaction.
+    ConversationFunctionTool finishConversationTool = new("finish conversation")
+    {
+        Name = "user_wants_to_finish_conversation",
+        Description = "Invoked when the user says goodbye, expresses being finished, or otherwise seems to want to stop the interaction.",
+        Parameters = BinaryData.FromString("{}")
+    };
+
+    // Now we configure the session using the tool we created along with transcription options that enable input
+    // audio transcription with whisper.
+    var options = new ConversationSessionOptions()
+    {
+        ToolChoice = ConversationToolChoice.CreateAutoToolChoice(),
+        InputTranscriptionOptions = new()
+        {
+            Model = "whisper-1",
+        },
+    };
+    options.Tools.Add(finishConversationTool);
+    await session.ConfigureSessionAsync(options);
 
     // For convenience, we'll proactively start playback to the speakers now. Nothing will play until it's enqueued.
     SpeakerOutput speakerOutput = new();
@@ -104,8 +141,8 @@ static async Task Start(string[] args)
             speakerOutput.EnqueueForPlayback(deltaUpdate.AudioBytes);
         }
 
-        // response.output_item.done tells us that a model-generated item with streaming content is completed.
-        // That's a good signal to provide a visual break and perform final evaluation of tool calls.
+        //response.output_item.done tells us that a model-generated item with streaming content is completed.
+        //That's a good signal to provide a visual break and perform final evaluation of tool calls.
         //if (update is ConversationItemStreamingFinishedUpdate itemFinishedUpdate)
         //{
         //    Console.WriteLine();
@@ -168,6 +205,7 @@ static RealtimeConversationClient GetConfiguredClientForAzureOpenAIWithEntra(
         ? $" * Using no deployment (AZURE_OPENAI_DEPLOYMENT)"
         : $" * Using deployment (AZURE_OPENAI_DEPLOYMENT): {aoaiDeployment}");
 
+    var client = new AzureOpenAIClient();
     AzureOpenAIClient aoaiClient = new(new Uri(aoaiEndpoint), new DefaultAzureCredential());
     return aoaiClient.GetRealtimeConversationClient(aoaiDeployment);
 }
@@ -182,7 +220,6 @@ static RealtimeConversationClient GetConfiguredClientForAzureOpenAIWithKey(
     Console.WriteLine(string.IsNullOrEmpty(aoaiDeployment)
         ? $" * Using no deployment (AZURE_OPENAI_DEPLOYMENT)"
         : $" * Using deployment (AZURE_OPENAI_DEPLOYMENT): {aoaiDeployment}");
-
     AzureOpenAIClient aoaiClient = new(new Uri(aoaiEndpoint), new ApiKeyCredential(aoaiApiKey));
     return aoaiClient.GetRealtimeConversationClient(aoaiDeployment);
 }

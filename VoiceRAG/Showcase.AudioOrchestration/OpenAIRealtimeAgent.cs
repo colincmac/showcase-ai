@@ -124,7 +124,7 @@ public class OpenAIRealtimeAgent : ConversationParticipant
                     await HandleAudioAsync(session, audioEvent, cancellationToken);
 
                 if (internalEvent is RealtimeMessageEvent chatEvent) 
-                    await session.AddItemAsync(ConversationItem.CreateAssistantMessage([chatEvent.ChatMessageContent]), cancellationToken);
+                    await session.AddItemAsync(ConversationItem.CreateSystemMessage(chatEvent.ChatMessageContent.Select(t => (ConversationContentPart)t)), cancellationToken);
             }
         }
         catch (Exception ex)

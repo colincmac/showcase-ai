@@ -79,14 +79,14 @@ public class ConversationParticipantTools : IAIToolHandler
         WaitForResponse,
     }
 
-    [AITool(name: "broadcastUserIntent", description: "Execute once you have determined the intent of the user.")]
-    public Task BroadcastUserIntent(
-        [Description("The reasoning why this transfer is needed.")] string reasonForTransfer,
-        [Description("Relevant context from the conversation that will help the recipient perform the correct action.")] string conversationContext,
-        ) => Task.FromResult(() =>
-        {
-            _logger.LogInformation($"Determined User Intent: {reasonForTransfer} \n ConversationContext: {conversationContext} \n TransferringTo: {agentName}");
-        });
+    //[AITool(name: "broadcastUserIntent", description: "Execute once you have determined the intent of the user.")]
+    //public Task BroadcastUserIntent(
+    //    [Description("The reasoning why this transfer is needed.")] string reasonForTransfer,
+    //    [Description("Relevant context from the conversation that will help the recipient perform the correct action.")] string conversationContext,
+    //    ) => Task.FromResult(() =>
+    //    {
+    //        _logger.LogInformation($"Determined User Intent: {reasonForTransfer} \n ConversationContext: {conversationContext} \n TransferringTo: {agentName}");
+    //    });
 
 
 }

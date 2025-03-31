@@ -141,7 +141,11 @@ public class AcsCallParticipant : ConversationParticipant
         var input = StreamingData.Parse(data);
         if(input is not AudioData audioData || audioData.IsSilent) return null;
 
-        return new RealtimeAudioDeltaEvent(AudioData: new BinaryData(audioData.Data), ServiceEventType: MediaKind.AudioData.ToString(), SourceId: Id);
+        return new RealtimeAudioDeltaEvent(AudioData: new BinaryData(audioData.Data))
+        {
+            ServiceEventType = StreamingDataKind.AudioData.ToString(),
+            SourceId = Id,
+        };
     }
 
     public override void Dispose()

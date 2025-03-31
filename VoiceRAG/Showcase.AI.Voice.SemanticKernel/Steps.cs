@@ -23,6 +23,7 @@ public class Steps
         var myCStep = processBuilder.AddStepFromType<CStep, CStepState>(initialState: new() { CurrentCycle = 1 });
 
         // Setup the input event that can trigger the process to run and specify which step and function it should be routed to.
+
         processBuilder
             .OnInputEvent(CommonEvents.StartProcess)
             .SendEventTo(new ProcessFunctionTargetBuilder(kickoffStep));
@@ -52,7 +53,7 @@ public class Steps
         myCStep
             .OnEvent(CommonEvents.ExitRequested)
             .StopProcess();
-
+        
         var process = processBuilder.Build();
         return process;
     }
