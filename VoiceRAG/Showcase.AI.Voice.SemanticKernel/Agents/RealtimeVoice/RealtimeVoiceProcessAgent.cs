@@ -30,10 +30,10 @@ public class RealtimeVoiceProcessAgent : OpenAIRealtimeAgent
         kernelBuilder.Services.AddSingleton(this);
 
         ProcessBuilder _processBuilder = new(sessionOptions.AgentName ?? nameof(RealtimeVoiceProcessAgent));
-        
+
         // Define Steps
         var realtimeAgentStep = _processBuilder
-            .AddStepFromType<RealtimeAgentStep>();
+            .AddStepFromType<AuthenticationStep>();
 
         var kickoff = _processBuilder
             .AddStepFromType<KickoffStep>();
@@ -47,14 +47,36 @@ public class RealtimeVoiceProcessAgent : OpenAIRealtimeAgent
         // Setup Step Connections/Edges
         _processBuilder.OnInputEvent(nameof(RealtimeConversationStartedEvent))
             .SendEventTo(new ProcessFunctionTargetBuilder(kickoff));
-        _process = _processBuilder.Build();
-        //updateAgentDirective.
 
+        kickoff.OnEvent(KickoffStep.OutputEvents.WelcomedUser)
+            .SendEventTo(new ProcessFunctionTargetBuilder(getName));
+
+        _process = _processBuilder.Build();
     }
 
-    private sealed class RealtimeAgentStep : KernelProcessStep
+    private sealed class AuthenticationStep : KernelProcessStep
     {
 
+        public static class OutputEvents
+        {
+            public const string AgentResponse = nameof(AgentResponse);
+        }
+
+
+        [KernelFunction]
+        public async ValueTask UpdateDirectiveAsync(KernelProcessStepContext context)
+        {
+            Console.WriteLine("##### Kickoff ran.");
+            await context.EmitEventAsync(new() { Id = OutputEvents.AgentResponse });
+        }
+    }
+
+    private sealed class UserIntentStep : KernelProcessStep
+    {
+        public UserIntentStep()
+        {
+
+        }
         public static class OutputEvents
         {
             public const string AgentResponse = nameof(AgentResponse);
@@ -135,6 +157,35 @@ public class RealtimeVoiceProcessAgent : OpenAIRealtimeAgent
             public const string CondimentsAdded = nameof(CondimentsAdded);
         }
     }
+
+
+    [JsonDerivedType(typeof(RealtimeEvent), nameof(UserNameUpdatedEvent))]
+    private record UserNameUpdatedEvent(string FullName) : RealtimeEvent
+    {
+        public override string EventType => nameof(UserNameUpdatedEvent);
+        public bool IsEmpty => false;
+    }
+
+    [JsonDerivedType(typeof(RealtimeEvent), nameof(PhoneNumberUpdatedEvent))]
+    private record PhoneNumberUpdatedEvent(string PhoneNumber) : RealtimeEvent
+    {
+        public override string EventType => nameof(PhoneNumberUpdatedEvent);
+        public bool IsEmpty => false;
+    }
+
+    [JsonDerivedType(typeof(RealtimeEvent), nameof(AccountNumberUpdatedEvent))]
+    private record AccountNumberUpdatedEvent(string AccountNumber) : RealtimeEvent
+    {
+        public override string EventType => nameof(AccountNumberUpdatedEvent);
+        public bool IsEmpty => false;
+    }
+
+    [JsonDerivedType(typeof(RealtimeEvent), nameof(DateOfBirthUpdatedEvent))]
+    private record DateOfBirthUpdatedEvent(string DateOfBirth) : RealtimeEvent
+    {
+        public override string EventType => nameof(DateOfBirthUpdatedEvent);
+        public bool IsEmpty => false;
+    }
 }
 
 [JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeConversationStartedEvent))]
@@ -143,6 +194,7 @@ public record RealtimeConversationStartedEvent(): RealtimeEvent
     public override string EventType => nameof(RealtimeConversationStartedEvent);
     public bool IsEmpty => false;
 }
+
 
 [DataContract]
 public sealed record ConversationState
