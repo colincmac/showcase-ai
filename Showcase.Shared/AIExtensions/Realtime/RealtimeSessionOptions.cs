@@ -13,6 +13,7 @@ namespace Showcase.Shared.AIExtensions.Realtime;
 public class RealtimeSessionOptions
 {
     public const string ConfigurationSection = "RealtimeSessionOptions";
+    public string? AgentName { get; set; }
     public string? ModelId { get; set; }
 
     public string? Instructions { get; set; }

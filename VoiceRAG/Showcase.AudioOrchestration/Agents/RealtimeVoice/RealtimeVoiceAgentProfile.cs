@@ -10,16 +10,11 @@ namespace Showcase.AI.Voice.Agents.RealtimeVoice;
 public class RealtimeVoiceAgentProfile
 {
 
-    #region General Metadata
-    public string AgentId { get; set; } 
-    public string AgentName { get; set; }
-    public string AgentDescription { get; set; }
-    public string AgentAvatarUrl { get; set; } = string.Empty;
-    public string AgentLanguage { get; set; }
-    public string AgentVoiceId { get; set; }
-    #endregion
+    public string Instructions { get; set; } = string.Empty;
+    public string Guidelines { get; set; } = string.Empty;
 
-    internal class Personality
+
+    public record Personality
     {
         public const string Title = "Personality and Tone";
         public string Identity { get; set; }
@@ -33,13 +28,22 @@ public class RealtimeVoiceAgentProfile
         public string Pacing { get; set; }
     }
 
-    internal class Context
+    public record  Metadata
+    {
+        public string AgentId { get; set; }
+        public string AgentName { get; set; }
+        public string AgentDescription { get; set; }
+        public string AgentAvatarUrl { get; set; } = string.Empty;
+        public string AgentLanguage { get; set; }
+        public string AgentVoiceId { get; set; }
+    }
+    public record Context
     {
         public const string Title = "Context";
         public string[] ContextList { get; set; }
     }
 
-    internal class Pronunciation
+    public record Pronunciation
     {
         public const string Title = "Pronunciation";
         public string[] PronunciationList { get; set; }

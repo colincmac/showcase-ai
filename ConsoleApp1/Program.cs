@@ -21,7 +21,6 @@ using System.Threading.Tasks;
 Console.WriteLine("Hello, World!");
 var kernel = Kernel.CreateBuilder().Build();
 var loggerFactory = new LoggerFactory();
-// Add Appsettings.json into configuration
 
 var configuration = new ConfigurationBuilder()
     .AddEnvironmentVariables()
@@ -31,6 +30,8 @@ var configuration = new ConfigurationBuilder()
 var azureOpenAIConfig = configuration.GetRequiredSection(AzureOpenAISettings.SectionName).Get<AzureOpenAISettings>();
 
 await StartAsync();
+
+
 
 async Task StartAsync()
 {
@@ -53,7 +54,6 @@ async Task StartAsync()
     localParticipant.SubscribeTo(aiParticipant);
     aiParticipant.SubscribeTo(localParticipant);
     await Task.WhenAll(localParticipant.StartResponseAsync(cts.Token), aiParticipant.StartResponseAsync(cts.Token));
-
 }
 
 

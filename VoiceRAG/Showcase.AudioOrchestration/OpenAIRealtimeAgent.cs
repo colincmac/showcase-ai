@@ -72,7 +72,7 @@ public class OpenAIRealtimeAgent : ConversationParticipant
                 {
                     _logger.LogDebug("Incoming audio to AI Agent. Barge-in by stopping all in-transit outgoing audio");
 
-                    var evt = new RealtimeStopAudioEvent()
+                    var evt = new ParticipantSpeakingEvent()
                     {
                         ServiceEventType = speechStartedUpdate.Kind.ToString(),
                         SourceId = Id
@@ -83,7 +83,7 @@ public class OpenAIRealtimeAgent : ConversationParticipant
                 {
                     _logger.LogDebug("Delta Input Transcript: {AudioTranscript}", inputTranscriptionFinished.Transcript);
 
-                    var evt = new RealtimeTranscriptMessageEvent(Transcription: inputTranscriptionFinished.Transcript)
+                    var evt = new RealtimeTranscriptFinishedEvent(Transcription: inputTranscriptionFinished.Transcript)
                     {
                         ServiceEventType = inputTranscriptionFinished.Kind.ToString(),
                         SourceId = Id

@@ -1,99 +1,166 @@
-﻿//#pragma warning disable OPENAI002
-//#pragma warning disable SKEXP0080 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+﻿#pragma warning disable OPENAI002
+#pragma warning disable SKEXP0080 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
 
-//using Microsoft.Extensions.Logging;
-//using Microsoft.SemanticKernel;
-//using OpenAI.RealtimeConversation;
-//using Showcase.AudioOrchestration;
-//using Showcase.Shared.AIExtensions.Realtime;
-//using System;
-//using System.Collections.Generic;
-//using System.Linq;
-//using System.Runtime.Serialization;
-//using System.Text;
-//using System.Text.Json;
-//using System.Threading.Tasks;
+using Azure.Communication.CallAutomation;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel;
+using OpenAI.RealtimeConversation;
+using Showcase.AudioOrchestration;
+using Showcase.Shared.AIExtensions.Realtime;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.Serialization;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
-//namespace Showcase.AI.Voice.SemanticKernel.Agents.RealtimeVoice;
+namespace Showcase.AI.Voice.SemanticKernel.Agents.RealtimeVoice;
 
-//public class RealtimeVoiceProcessAgent : OpenAIRealtimeAgent
-//{
-//    private readonly ProcessBuilder _processBuilder = new("RealtimeVoiceProcessAgent");
+public class RealtimeVoiceProcessAgent : OpenAIRealtimeAgent
+{
+    private readonly KernelProcess _process;
+    public RealtimeVoiceProcessAgent(RealtimeConversationClient aiClient, RealtimeSessionOptions sessionOptions, ILoggerFactory loggerFactory, string id, string name) : base(aiClient, sessionOptions, loggerFactory, id, name)
+    {
+        var kernelBuilder = Kernel.CreateBuilder();
 
-//    public RealtimeVoiceProcessAgent(RealtimeConversationClient aiClient, RealtimeSessionOptions sessionOptions, ILoggerFactory loggerFactory, string id, string name) : base(aiClient, sessionOptions, loggerFactory, id, name)
-//    {
-//        _processBuilder
-//            .AddStepFromType<KickoffStep>();
+        kernelBuilder.Services.AddSingleton(this);
 
-//        _processBuilder.AddStepFromType<GetName>();
+        ProcessBuilder _processBuilder = new(sessionOptions.AgentName ?? nameof(RealtimeVoiceProcessAgent));
+        
+        // Define Steps
+        var realtimeAgentStep = _processBuilder
+            .AddStepFromType<RealtimeAgentStep>();
 
-//        _processBuilder.AddStepFromType<HandOffStep, ConversationState>(initialState: new());
+        var kickoff = _processBuilder
+            .AddStepFromType<KickoffStep>();
 
-//    }
+        var getName = _processBuilder
+            .AddStepFromType<GetName>();
 
-//    private sealed class KickoffStep : KernelProcessStep
-//    {
+        var handoff = _processBuilder
+            .AddStepFromType<HandOffStep, ConversationState>(initialState: new());
+
+        // Setup Step Connections/Edges
+        _processBuilder.OnInputEvent(nameof(RealtimeConversationStartedEvent))
+            .SendEventTo(new ProcessFunctionTargetBuilder(kickoff));
+        _process = _processBuilder.Build();
+        //updateAgentDirective.
+
+    }
+
+    private sealed class RealtimeAgentStep : KernelProcessStep
+    {
+
+        public static class OutputEvents
+        {
+            public const string AgentResponse = nameof(AgentResponse);
+        }
 
 
-//        [KernelFunction]
-//        public async ValueTask PrintWelcomeMessageAsync(KernelProcessStepContext context)
-//        {
-//            Console.WriteLine("##### Kickoff ran.");
-//            await context.EmitEventAsync(new() { });
-//            await context.EmitEventAsync(new() { Id = CommonEvents.StartARequested, Data = "Get Going" });
-//        }
-//    }
+        [KernelFunction]
+        public async ValueTask UpdateDirectiveAsync(KernelProcessStepContext context)
+        {
+            Console.WriteLine("##### Kickoff ran.");
+            await context.EmitEventAsync(new() { Id = OutputEvents.AgentResponse });
+        }
+    }
 
-//    private sealed class GetName : KernelProcessStep
-//    {
+    private sealed class KickoffStep : KernelProcessStep
+    {
+        private readonly string _instructions = """
+
+            """;
+        //public KickoffStep(ILoggerFactory loggerFactory)
+        //{
+        //}
+        //public override ValueTask ActivateAsync(KernelProcessStepState state)
+        //{
+        //    Console.WriteLine($"##### KickoffStep activated with instructions = '{_instructions}'.");
+        //    return base.ActivateAsync(state);
+        //}
+        public static class OutputEvents
+        {
+            public const string WelcomedUser = nameof(WelcomedUser);
+        }
 
 
-//        [KernelFunction]
-//        public async ValueTask GetNameAsync(KernelProcessStepContext context)
-//        {
-//            Console.WriteLine("##### Kickoff ran.");
-//            await context.EmitEventAsync(new() { Id = CommonEvents.StartARequested, Data = "Get Going" });
-//        }
-//    }
+        [KernelFunction]
+        public async ValueTask PrintWelcomeMessageAsync(KernelProcessStepContext context)
+        {
+            Console.WriteLine("##### Kickoff ran.");
+            await context.EmitEventAsync(new() { });
+            await context.EmitEventAsync(new() { Id = OutputEvents.WelcomedUser, Data = "Get Going" });
+        }
+    }
 
-//    private sealed class HandOffStep : KernelProcessStep<ConversationState>
-//    {
-//        private ConversationState? _state;
+    private sealed class GetName : KernelProcessStep
+    {
+        public static class OutputEvents
+        {
+            public const string CondimentsAdded = nameof(CondimentsAdded);
+        }
 
-//        public override ValueTask ActivateAsync(KernelProcessStepState<ConversationState> state)
-//        {
-//            this._state = state.State;
-//            Console.WriteLine($"##### HandOffStep activated with info = '{_state}'.");
-//            return base.ActivateAsync(state);
-//        }
 
-//        [KernelFunction]
-//        public async ValueTask PrintWelcomeMessageAsync(KernelProcessStepContext context)
-//        {
-//            Console.WriteLine("##### Kickoff ran.");
-//            await context.EmitEventAsync(new() { Id = CommonEvents.StartARequested, Data = "Get Going" });
-//        }
-//    }
-//}
+        [KernelFunction]
+        public async ValueTask GetNameAsync(KernelProcessStepContext context)
+        {
+            Console.WriteLine("##### Kickoff ran.");
+            await context.EmitEventAsync(new() { });
+        }
+    }
 
-//[DataContract]
-//public sealed record ConversationState
-//{
-//    [DataMember]
-//    public string? LastMessage { get; set; }
+    private sealed class HandOffStep : KernelProcessStep<ConversationState>
+    {
+        private ConversationState? _state;
 
-//    [DataMember]
-//    public string? UserName { get; set; }
-//    [DataMember]
-//    public DateTime? DateOfBirth { get; set; }
+        public override ValueTask ActivateAsync(KernelProcessStepState<ConversationState> state)
+        {
+            this._state = state.State;
+            Console.WriteLine($"##### HandOffStep activated with info = '{_state}'.");
+            return base.ActivateAsync(state);
+        }
 
-//    [DataMember]
-//    public string? AccountNumber { get; set; }
+        [KernelFunction]
+        public async ValueTask PrintWelcomeMessageAsync(KernelProcessStepContext context)
+        {
+            Console.WriteLine("##### Kickoff ran.");
+            await context.EmitEventAsync(new() { });
+        }
+        public static class OutputEvents
+        {
+            public const string CondimentsAdded = nameof(CondimentsAdded);
+        }
+    }
+}
 
-//    [DataMember]
-//    public string? Email { get; set; }
+[JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeConversationStartedEvent))]
+public record RealtimeConversationStartedEvent(): RealtimeEvent
+{
+    public override string EventType => nameof(RealtimeConversationStartedEvent);
+    public bool IsEmpty => false;
+}
 
-//    [DataMember]
-//    public string? PhoneNumber { get; set; }
-//}
+[DataContract]
+public sealed record ConversationState
+{
+    [DataMember]
+    public string? LastMessage { get; set; }
+
+    [DataMember]
+    public string? UserName { get; set; }
+    [DataMember]
+    public DateTime? DateOfBirth { get; set; }
+
+    [DataMember]
+    public string? AccountNumber { get; set; }
+
+    [DataMember]
+    public string? Email { get; set; }
+
+    [DataMember]
+    public string? PhoneNumber { get; set; }
+}

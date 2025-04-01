@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Showcase.AudioOrchestration;
 
-#region Shared Models & Commands
+#region Shared Events
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum WellKnownEventDataType
@@ -33,7 +33,7 @@ public enum WellKnownEventType
     IntentDiscovered
 }
 
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "EventType")]
+[JsonPolymorphic(TypeDiscriminatorPropertyName = nameof(EventType))]
 public abstract record RealtimeEvent()
 {
     public abstract string EventType { get; }
@@ -44,60 +44,75 @@ public abstract record RealtimeEvent()
     public string SourceName { get; init; } = string.Empty;
 };
 
-[JsonDerivedType(typeof(RealtimeAudioDeltaEvent), "RawAudio")]
+[JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeAudioDeltaEvent))]
 public record RealtimeAudioDeltaEvent(BinaryData AudioData, string? TranscriptText = null) : RealtimeEvent
 {
-    public override string EventType => "RawAudio";
+    public override string EventType => nameof(RealtimeAudioDeltaEvent);
     public bool IsEmpty => AudioData is null || AudioData.IsEmpty;
 };
 
-[JsonDerivedType(typeof(RealtimeMessageEvent), "ChatMessage")]
+[JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeMessageEvent))]
 public record RealtimeMessageEvent(IEnumerable<string> ChatMessageContent, string ConversationMessageRole) : RealtimeEvent
 {
-    public override string EventType => "ChatMessage";
+    public override string EventType => nameof(RealtimeMessageEvent);
     public bool IsEmpty => !ChatMessageContent.Any();
 }
 
-[JsonDerivedType(typeof(RealtimeTranscriptMessageEvent), "TranscriptText")]
-public record RealtimeTranscriptMessageEvent(string Transcription) : RealtimeEvent
+[JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeTranscriptFinishedEvent))]
+public record RealtimeTranscriptFinishedEvent(string Transcription) : RealtimeEvent
 {
-    public override string EventType => "TranscriptText";
+    public override string EventType => nameof(RealtimeTranscriptFinishedEvent);
     public bool IsEmpty => string.IsNullOrWhiteSpace(Transcription);
 }
 
-[JsonDerivedType(typeof(RealtimeTranscriptMessageEvent), "MetricData")]
-public record RealtimeMetricEvent(BinaryData Metric) : RealtimeEvent
+[JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeMetricDeltaEvent))]
+public record RealtimeMetricDeltaEvent(BinaryData Metric) : RealtimeEvent
 {
-    public override string EventType => "MetricData";
+    public override string EventType => nameof(RealtimeMetricDeltaEvent);
     public bool IsEmpty => Metric.IsEmpty;
 }
 
-[JsonDerivedType(typeof(RealtimeTranscriptMessageEvent), "StopAudio")]
-public record RealtimeStopAudioEvent() : RealtimeEvent
+
+// Similar to Stop Audio from ACS
+[JsonDerivedType(typeof(RealtimeEvent), nameof(ParticipantSpeakingEvent))]
+public record ParticipantSpeakingEvent() : RealtimeEvent
 {
-    public override string EventType => "StopAudio";
-    public bool IsEmpty => true;
+    public override string EventType => nameof(ParticipantSpeakingEvent);
+    public bool IsEmpty => false;
 }
 
-[JsonDerivedType(typeof(RealtimeTranscriptMessageEvent), "RawVideo")]
+[JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeVideoDeltaEvent))]
 public record RealtimeVideoDeltaEvent(BinaryData VideoData) : RealtimeEvent
 {
-    public override string EventType => "RawVideo";
+    public override string EventType => nameof(RealtimeVideoDeltaEvent);
     public bool IsEmpty => VideoData.IsEmpty;
 }
 
-[JsonDerivedType(typeof(RealtimeTranscriptMessageEvent), "UserIntentDiscovered")]
+[JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeUserIntentDiscoveredEvent))]
 public record RealtimeUserIntentDiscoveredEvent() : RealtimeEvent
 {
-    public override string EventType => "UserIntentDiscovered";
+    public override string EventType => nameof(RealtimeUserIntentDiscoveredEvent);
     public bool IsEmpty => true;
 }
 
-[JsonDerivedType(typeof(RealtimeTranscriptMessageEvent), "UserIntentFulfilled")]
+[JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeUserIntentFulfilledEvent))]
 public record RealtimeUserIntentFulfilledEvent() : RealtimeEvent
 {
-    public override string EventType => "UserIntentDiscovered";
+    public override string EventType => nameof(RealtimeUserIntentFulfilledEvent);
     public bool IsEmpty => true;
 }
 
+#endregion
+
+#region Shared Commands
+[JsonPolymorphic(TypeDiscriminatorPropertyName = nameof(EventType))]
+public abstract record RealtimeCommand()
+{
+    public abstract string CommandType { get; }
+
+    public Guid EventId { get; init; } = Guid.CreateVersion7(DateTimeOffset.UtcNow);
+    public string ServiceEventType { get; init; } = string.Empty;
+    public string SourceId { get; init; } = string.Empty;
+    public string SourceName { get; init; } = string.Empty;
+};
 #endregion
