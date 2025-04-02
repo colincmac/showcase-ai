@@ -22,6 +22,7 @@ using System.Threading.Tasks;
 namespace Showcase.AI.Voice.SemanticKernel.Processes.RealtimeVoice;
 
 
+public record AgentStepConfiguration(string Instructions);
 /**
  * State-Driven Process Framework
  */
@@ -85,6 +86,9 @@ public static class ConversationProcess
         // Define Steps
         var realtimeAgentStep = processBuilder
             .AddStepFromType<AuthenticationStep>();
+
+        var authenticationStep = processBuilder.AddStepFromProcess(AuthenticationProcess.CreateProcess());
+
 
         var kickoff = processBuilder
             .AddStepFromType<KickoffStep>();
