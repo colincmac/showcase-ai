@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="Azure.Communication.CallAutomation" Version="1.4.0-alpha.20241220.1" />
+		<PackageReference Include="Azure.Communication.Common" Version="1.3.0" />
+		<PackageReference Include="Azure.Communication.Identity" Version="1.3.1" />
+	</ItemGroup>
+</Project>

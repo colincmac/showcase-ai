@@ -72,7 +72,7 @@ public class OpenAIRealtimeAgent : ConversationParticipant
                 {
                     _logger.LogDebug("Incoming audio to AI Agent. Barge-in by stopping all in-transit outgoing audio");
 
-                    var evt = new ParticipantSpeakingEvent()
+                    var evt = new ParticipantStartedSpeakingEvent()
                     {
                         ServiceEventType = speechStartedUpdate.Kind.ToString(),
                         SourceId = Id

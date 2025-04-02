@@ -21,7 +21,7 @@ public class TestParticipant : ConversationParticipant
         {
             if (internalEvent is RealtimeAudioDeltaEvent audioEvent) await SendAudioAsync(audioEvent, cancellationToken).ConfigureAwait(false);
 
-            if (internalEvent is ParticipantSpeakingEvent stopAudioEvent) await SendStopAudioAsync(cancellationToken).ConfigureAwait(false);
+            if (internalEvent is ParticipantStartedSpeakingEvent stopAudioEvent) await SendStopAudioAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 

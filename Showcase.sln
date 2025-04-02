@@ -39,6 +39,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionIt
 		VoiceAgentMetaPrompt.txt = VoiceAgentMetaPrompt.txt
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Showcase.AI.Voice.AzureCommunicationServices", "VoiceRAG\Showcase.AI.Voice.AzureCommunicationServices\Showcase.AI.Voice.AzureCommunicationServices.csproj", "{50388080-44D2-44D0-B551-D328C5436C91}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -97,6 +99,10 @@ Global
 		{BC34830E-68E6-4207-8FF1-ACA4A1069F77}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BC34830E-68E6-4207-8FF1-ACA4A1069F77}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BC34830E-68E6-4207-8FF1-ACA4A1069F77}.Release|Any CPU.Build.0 = Release|Any CPU
+		{50388080-44D2-44D0-B551-D328C5436C91}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{50388080-44D2-44D0-B551-D328C5436C91}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{50388080-44D2-44D0-B551-D328C5436C91}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{50388080-44D2-44D0-B551-D328C5436C91}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -111,6 +117,7 @@ Global
 		{E1E6853A-6B3E-47F6-8817-7E6AD32E2C53} = {4DD328CC-1576-4B39-BD7F-DE372A44139D}
 		{D6667327-39AB-44B6-95F0-F01367DD355D} = {4DD328CC-1576-4B39-BD7F-DE372A44139D}
 		{BC34830E-68E6-4207-8FF1-ACA4A1069F77} = {4DD328CC-1576-4B39-BD7F-DE372A44139D}
+		{50388080-44D2-44D0-B551-D328C5436C91} = {4DD328CC-1576-4B39-BD7F-DE372A44139D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6BA72D8C-B1B0-4D6B-9574-0BECD602791F}

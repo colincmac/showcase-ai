@@ -11,6 +11,7 @@ using Showcase.AudioOrchestration;
 using Showcase.Shared.AIExtensions.Realtime;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
@@ -18,43 +19,101 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace Showcase.AI.Voice.SemanticKernel.Agents.RealtimeVoice;
+namespace Showcase.AI.Voice.SemanticKernel.Processes.RealtimeVoice;
 
-public class RealtimeVoiceProcessAgent : OpenAIRealtimeAgent
+
+/**
+ * State-Driven Process Framework
+ */
+public static class AuthenticationProcess
 {
-    private readonly KernelProcess _process;
-    public RealtimeVoiceProcessAgent(RealtimeConversationClient aiClient, RealtimeSessionOptions sessionOptions, ILoggerFactory loggerFactory, string id, string name) : base(aiClient, sessionOptions, loggerFactory, id, name)
+    public static ProcessBuilder CreateProcess(string? processName = null)
     {
-        var kernelBuilder = Kernel.CreateBuilder();
+        ProcessBuilder processBuilder = new(processName ?? nameof(AuthenticationProcess));
+        // Define Steps
+        var realtimeAgentStep = processBuilder
+            .AddStepFromType<ValidateAccount>();
+        // Setup Step Connections/Edges
+        // When the interaction is complete.
+        processBuilder.OnInputEvent(nameof(RealtimeConversationStartedEvent))
+            .SendEventTo(new ProcessFunctionTargetBuilder(realtimeAgentStep));
+        return processBuilder;
+    }
+    public sealed class ValidateAccount : KernelProcessStep
+    {
 
-        kernelBuilder.Services.AddSingleton(this);
+        public static class OutputEvents
+        {
+            public const string AgentResponse = nameof(AgentResponse);
+        }
 
-        ProcessBuilder _processBuilder = new(sessionOptions.AgentName ?? nameof(RealtimeVoiceProcessAgent));
+
+        [KernelFunction]
+        public async ValueTask UpdateDirectiveAsync(KernelProcessStepContext context)
+        {
+            Console.WriteLine("##### Kickoff ran.");
+            await context.EmitEventAsync(new() { Id = OutputEvents.AgentResponse });
+        }
+    }
+
+    public sealed class ValidateName : KernelProcessStep
+    {
+
+        public static class OutputEvents
+        {
+            public const string AgentResponse = nameof(AgentResponse);
+        }
+
+
+        [KernelFunction]
+        public async ValueTask UpdateDirectiveAsync(KernelProcessStepContext context)
+        {
+            Console.WriteLine("##### Kickoff ran.");
+            await context.EmitEventAsync(new() { Id = OutputEvents.AgentResponse });
+        }
+    }
+}
+
+public static class ConversationProcess
+{
+
+    //public static ProcessBuilder CreateProcess(RealtimeConversationClient aiClient, RealtimeSessionOptions sessionOptions, ILoggerFactory loggerFactory, string id, string name)
+    public static ProcessBuilder CreateProcess(string? processName = null)
+    {
+        ProcessBuilder processBuilder = new(processName ?? nameof(ConversationProcess));
 
         // Define Steps
-        var realtimeAgentStep = _processBuilder
+        var realtimeAgentStep = processBuilder
             .AddStepFromType<AuthenticationStep>();
 
-        var kickoff = _processBuilder
+        var kickoff = processBuilder
             .AddStepFromType<KickoffStep>();
 
-        var getName = _processBuilder
-            .AddStepFromType<GetName>();
+        var getName = processBuilder
+            .AddStepFromType<GetUserName>();
 
-        var handoff = _processBuilder
+        var handoff = processBuilder
             .AddStepFromType<HandOffStep, ConversationState>(initialState: new());
 
+        //var mailServiceStep = _processBuilder.AddStepFromType<MailServiceStep>();
+
+
         // Setup Step Connections/Edges
-        _processBuilder.OnInputEvent(nameof(RealtimeConversationStartedEvent))
+
+        // When the interaction is complete.
+        processBuilder.OnInputEvent(nameof(RealtimeConversationStartedEvent))
             .SendEventTo(new ProcessFunctionTargetBuilder(kickoff));
+
 
         kickoff.OnEvent(KickoffStep.OutputEvents.WelcomedUser)
             .SendEventTo(new ProcessFunctionTargetBuilder(getName));
-
-        _process = _processBuilder.Build();
+        return processBuilder;
     }
 
-    private sealed class AuthenticationStep : KernelProcessStep
+
+    #region Steps
+    // Treat each step as a unit of work.
+    public sealed class AuthenticationStep : KernelProcessStep
     {
 
         public static class OutputEvents
@@ -71,12 +130,9 @@ public class RealtimeVoiceProcessAgent : OpenAIRealtimeAgent
         }
     }
 
-    private sealed class UserIntentStep : KernelProcessStep
+    public sealed class DetermineIntentStep : KernelProcessStep
     {
-        public UserIntentStep()
-        {
 
-        }
         public static class OutputEvents
         {
             public const string AgentResponse = nameof(AgentResponse);
@@ -91,7 +147,8 @@ public class RealtimeVoiceProcessAgent : OpenAIRealtimeAgent
         }
     }
 
-    private sealed class KickoffStep : KernelProcessStep
+
+    public sealed class KickoffStep : KernelProcessStep
     {
         private readonly string _instructions = """
 
@@ -119,7 +176,7 @@ public class RealtimeVoiceProcessAgent : OpenAIRealtimeAgent
         }
     }
 
-    private sealed class GetName : KernelProcessStep
+    public sealed class GetUserName : KernelProcessStep
     {
         public static class OutputEvents
         {
@@ -135,7 +192,7 @@ public class RealtimeVoiceProcessAgent : OpenAIRealtimeAgent
         }
     }
 
-    private sealed class HandOffStep : KernelProcessStep<ConversationState>
+    public sealed class HandOffStep : KernelProcessStep<ConversationState>
     {
         private ConversationState? _state;
 
@@ -157,7 +214,7 @@ public class RealtimeVoiceProcessAgent : OpenAIRealtimeAgent
             public const string CondimentsAdded = nameof(CondimentsAdded);
         }
     }
-
+    #endregion
 
     [JsonDerivedType(typeof(RealtimeEvent), nameof(UserNameUpdatedEvent))]
     private record UserNameUpdatedEvent(string FullName) : RealtimeEvent
