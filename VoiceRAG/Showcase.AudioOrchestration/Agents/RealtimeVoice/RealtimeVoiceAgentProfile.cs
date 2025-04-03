@@ -1,157 +1,126 @@
 ﻿using Markdig;
 using Markdig.Syntax;
+using Markdig.Syntax.Inlines;
+using Showcase.AI.Voice.Extensions;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace Showcase.AI.Voice.Agents.RealtimeVoice
+namespace Showcase.AI.Voice.Agents.RealtimeVoice;
+
+[AttributeUsage(AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
+sealed class MarkdownDisplayNameAttribute : Attribute
 {
-    [AttributeUsage(AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
-    sealed class MarkdownDisplayNameAttribute : Attribute
-    {
-        public string DisplayName { get; }
+    public string DisplayName { get; }
 
-        public MarkdownDisplayNameAttribute(string displayName) => DisplayName = displayName;
+    public MarkdownDisplayNameAttribute(string displayName) => DisplayName = displayName;
+}
+
+public partial class RealtimeVoiceAgentProfile
+{
+
+    [MarkdownDisplayName("Instructions")]
+    public string Instructions { get; set; } = string.Empty;
+
+    [MarkdownDisplayName("Guidelines")]
+    public string Guidelines { get; set; } = string.Empty;
+
+    [MarkdownDisplayName(PersonalityAndToneSection.Title)]
+    public PersonalityAndToneSection Personality { get; set; } = new PersonalityAndToneSection();
+
+    [MarkdownDisplayName(ContextSection.Title)]
+    public ContextSection Context { get; set; } = new ContextSection();
+
+    [MarkdownDisplayName(PronunciationSection.Title)]
+    public PronunciationSection Pronunciation { get; set; } = new PronunciationSection();
+
+    public record ContextSection
+    {
+        public const string Title = "Context";
+        public string[] ContextList { get; set; } = [];
     }
 
-    public class RealtimeVoiceAgentProfile
+    public record PronunciationSection
     {
-        public static RealtimeVoiceAgentProfile TryFromMarkdown(string markdownText)
+        public const string Title = "Pronunciation";
+        public string[] PronunciationList { get; set; } = [];
+    }
+
+    public record PersonalityAndToneSection
+    {
+        public const string Title = "Personality and Tone";
+
+        [MarkdownDisplayName("Identity")]
+        public string Identity { get; set; } = string.Empty;
+
+        [MarkdownDisplayName("Task")]
+        public string Task { get; set; } = string.Empty;
+
+        [MarkdownDisplayName("Demeanor")]
+        public string Demeanor { get; set; } = string.Empty;
+
+        [MarkdownDisplayName("Tone")]
+        public string Tone { get; set; } = string.Empty;
+
+        [MarkdownDisplayName("Level of Enthusiasm")]
+        public string EnthusiasmLevel { get; set; } = string.Empty;
+
+        [MarkdownDisplayName("Level of Formality")]
+        public string FormalityLevel { get; set; } = string.Empty;
+
+        [MarkdownDisplayName("Level of Emotion")]
+        public string EmotionLevel { get; set; } = string.Empty;
+
+        [MarkdownDisplayName("Filler Words")]
+        public string FillerWords { get; set; } = string.Empty;
+
+        [MarkdownDisplayName("Pacing")]
+        public string Pacing { get; set; } = string.Empty;
+
+        public string ToMarkdown()
         {
-            var pipeline = new MarkdownPipelineBuilder()
-                .UseAutoIdentifiers()
-                .UseAdvancedExtensions()
-                .Build();
-
-            var document = Markdown.Parse(markdownText, pipeline);
-            var profile = new RealtimeVoiceAgentProfile();
-            var properties = typeof(RealtimeVoiceAgentProfile)
-                .GetProperties(BindingFlags.Public);
-
-            foreach (var heading in document.Descendants<HeadingBlock>())
-            {
-                heading.
-                var headingText = heading.Inline?.FirstChild?.ToString();
-                switch (headingText)
+            var properties = GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Select(p => new
                 {
-                    case PersonalityAndToneSection.Title:
-                        profile.Personality = ParsePersonality(document, heading);
-                        break;
-                    case "Instructions":
-                        profile.Instructions = ParseSectionContent(document, heading);
-                        break;
-                    case "Important Guidelines":
-                        profile.Guidelines = ParseSectionContent(document, heading);
-                        break;
-                }
-                
+                    DisplayName = p.GetCustomAttribute<MarkdownDisplayNameAttribute>()?.DisplayName ?? p.Name,
+                    Value = p.GetValue(this)?.ToString() ?? string.Empty
+                });
+            var sb = new StringBuilder();
+            foreach (var prop in properties)
+            {
+                if(string.IsNullOrEmpty(prop.Value)) continue; // Skip empty values
+                sb.AppendLine($"## {prop.DisplayName}");
+                sb.AppendLine(prop.Value);
+                sb.AppendLine();
             }
-
-            return profile;
+            return sb.ToString();
         }
 
-        private static string ParseSectionContent(MarkdownDocument document, HeadingBlock heading)
+        public PersonalityAndToneSection FromMarkdown(string markdown)
         {
-            var content = new StringBuilder();
-            var startLine = heading.Line + 1;
-            foreach (var node in document.Descendants().SkipWhile(n => n.Line < startLine))
+            var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+            var document = Markdown.Parse(markdown, pipeline);
+            var headings = document.Descendants<HeadingBlock>().ToList();
+            foreach (var heading in headings)
             {
-                if (node is HeadingBlock) break;
-                content.AppendLine(node.ToString());
-            }
-            return content.ToString().Trim();
-        }
+                if(heading.Level != 2) continue; // Only process level 2 headings
+                var displayName = heading.GetTitle();
 
-        private static PersonalityAndToneSection ParsePersonality(MarkdownDocument document, HeadingBlock heading)
-        {
-            var personality = new PersonalityAndToneSection();
-            var startLine = heading.Line + 1;
-            foreach (var node in document.Descendants().SkipWhile(n => n.Line < startLine))
-            {
-                if (node is HeadingBlock) break;
-                if (node is ParagraphBlock paragraph)
+                var content = heading.Get;
+                if (string.IsNullOrEmpty(displayName) || string.IsNullOrEmpty(content)) continue;
+                var property = GetType().GetProperty(displayName);
+                if (property != null)
                 {
-                    var text = paragraph?.Inline?.FirstChild?.ToString();
-                    var properties = typeof(PersonalityAndToneSection).GetProperties();
-                    foreach (var property in properties)
-                    {
-                        var attribute = property.GetCustomAttribute<MarkdownDisplayNameAttribute>();
-                        if (attribute != null && !string.IsNullOrEmpty(text) && text.StartsWith($"## {attribute.DisplayName}"))
-                        {
-                            property.SetValue(personality, text.Substring(attribute.DisplayName.Length + 3).Trim());
-                            break;
-                        }
-                    }
+                    property.SetValue(this, content);
                 }
             }
-            return personality;
-        }
-
-        [MarkdownDisplayName("Instructions")]
-        public string Instructions { get; set; } = string.Empty;
-
-        [MarkdownDisplayName("Guidelines")]
-        public string Guidelines { get; set; } = string.Empty;
-
-        [MarkdownDisplayName(PersonalityAndToneSection.Title)]
-        public PersonalityAndToneSection Personality { get; set; } = new PersonalityAndToneSection();
-
-        public record PersonalityAndToneSection
-        {
-            public const string Title = "Personality and Tone";
-
-            [MarkdownDisplayName("Identity")]
-            public string Identity { get; set; } = string.Empty;
-
-            [MarkdownDisplayName("Task")]
-            public string Task { get; set; } = string.Empty;
-
-            [MarkdownDisplayName("Demeanor")]
-            public string Demeanor { get; set; } = string.Empty;
-
-            [MarkdownDisplayName("Tone")]
-            public string Tone { get; set; } = string.Empty;
-
-            [MarkdownDisplayName("Level of Enthusiasm")]
-            public string EnthusiasmLevel { get; set; } = string.Empty;
-
-            [MarkdownDisplayName("Level of Formality")]
-            public string FormalityLevel { get; set; } = string.Empty;
-
-            [MarkdownDisplayName("Level of Emotion")]
-            public string EmotionLevel { get; set; } = string.Empty;
-
-            [MarkdownDisplayName("Filler Words")]
-            public string FillerWords { get; set; } = string.Empty;
-
-            [MarkdownDisplayName("Pacing")]
-            public string Pacing { get; set; } = string.Empty;
-        }
-
-        public record Metadata
-        {
-            public string AgentId { get; set; } = string.Empty;
-            public string AgentName { get; set; } = string.Empty;
-            public string AgentDescription { get; set; } = string.Empty;
-            public string AgentAvatarUrl { get; set; } = string.Empty;
-            public string AgentLanguage { get; set; } = string.Empty;
-            public string AgentVoiceId { get; set; } = string.Empty;
-        }
-
-        public record ContextSection
-        {
-            public const string Title = "Context";
-            public string[] ContextList { get; set; } = Array.Empty<string>();
-        }
-
-        public record PronunciationSection
-        {
-            public const string Title = "Pronunciation";
-            public string[] PronunciationList { get; set; } = Array.Empty<string>();
+            return this;
         }
     }
+
 }
