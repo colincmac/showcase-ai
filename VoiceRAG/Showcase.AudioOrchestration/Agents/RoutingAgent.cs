@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Showcase.AI.Voice.AgentConfigurations;
+namespace Showcase.AI.Voice.Agents;
 
 public class RoutingAgent
 {

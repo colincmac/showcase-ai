@@ -20,8 +20,4 @@
     <ProjectReference Include="..\..\Showcase.Shared\Showcase.Shared.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Processes\" />
-  </ItemGroup>
-
 </Project>

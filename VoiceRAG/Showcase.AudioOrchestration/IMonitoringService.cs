@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Showcase.AudioOrchestration;
+namespace Showcase.AI.Voice;
 
 /// <summary>
 /// Interface for updating an external monitoring system with call quality and other events.

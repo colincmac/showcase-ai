@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Showcase.AudioOrchestration;
+namespace Showcase.AI.Voice;
 
 internal class DelegateObserver<T> : IObserver<T>
 {

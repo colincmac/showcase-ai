@@ -2,7 +2,6 @@
 
 using Microsoft.Extensions.Logging;
 using OpenAI.RealtimeConversation;
-using Showcase.AudioOrchestration;
 using Showcase.Shared.AIExtensions.Realtime;
 
 namespace Showcase.AI.Voice.Agents.RealtimeVoice;

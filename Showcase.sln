@@ -41,6 +41,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionIt
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Showcase.AI.Voice.AzureCommunicationServices", "VoiceRAG\Showcase.AI.Voice.AzureCommunicationServices\Showcase.AI.Voice.AzureCommunicationServices.csproj", "{50388080-44D2-44D0-B551-D328C5436C91}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Showcase.AI.Voice.Orleans", "VoiceRAG\Showcase.AI.Voice.Orleans\Showcase.AI.Voice.Orleans.csproj", "{39A80983-9A96-4E57-AEEF-24EC60A7D407}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Showcase.AI.Voice.Agent1", "VoiceRAG\Showcase.AI.Voice.Agent1\Showcase.AI.Voice.Agent1.csproj", "{55BD8504-A96C-2BF0-C215-F7C33337A5EE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -103,6 +107,14 @@ Global
 		{50388080-44D2-44D0-B551-D328C5436C91}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{50388080-44D2-44D0-B551-D328C5436C91}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{50388080-44D2-44D0-B551-D328C5436C91}.Release|Any CPU.Build.0 = Release|Any CPU
+		{39A80983-9A96-4E57-AEEF-24EC60A7D407}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39A80983-9A96-4E57-AEEF-24EC60A7D407}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39A80983-9A96-4E57-AEEF-24EC60A7D407}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39A80983-9A96-4E57-AEEF-24EC60A7D407}.Release|Any CPU.Build.0 = Release|Any CPU
+		{55BD8504-A96C-2BF0-C215-F7C33337A5EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{55BD8504-A96C-2BF0-C215-F7C33337A5EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{55BD8504-A96C-2BF0-C215-F7C33337A5EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{55BD8504-A96C-2BF0-C215-F7C33337A5EE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -118,6 +130,7 @@ Global
 		{D6667327-39AB-44B6-95F0-F01367DD355D} = {4DD328CC-1576-4B39-BD7F-DE372A44139D}
 		{BC34830E-68E6-4207-8FF1-ACA4A1069F77} = {4DD328CC-1576-4B39-BD7F-DE372A44139D}
 		{50388080-44D2-44D0-B551-D328C5436C91} = {4DD328CC-1576-4B39-BD7F-DE372A44139D}
+		{55BD8504-A96C-2BF0-C215-F7C33337A5EE} = {4DD328CC-1576-4B39-BD7F-DE372A44139D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6BA72D8C-B1B0-4D6B-9574-0BECD602791F}

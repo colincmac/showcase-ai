@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Showcase.AudioOrchestration;
+namespace Showcase.AI.Voice;
 
 public class ConversationHistory : IList<RealtimeEvent>, IReadOnlyList<RealtimeEvent>
 {

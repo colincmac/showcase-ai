@@ -14,11 +14,9 @@ using System.Threading.Tasks;
 namespace Showcase.AI.Voice.Agents.RealtimeVoice;
 
 [AttributeUsage(AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
-sealed class MarkdownDisplayNameAttribute : Attribute
+sealed class MarkdownDisplayNameAttribute(string DisplayName) : Attribute
 {
-    public string DisplayName { get; }
-
-    public MarkdownDisplayNameAttribute(string displayName) => DisplayName = displayName;
+    public string DisplayName { get; } = DisplayName;
 }
 
 public partial class RealtimeVoiceAgentProfile
@@ -30,31 +28,17 @@ public partial class RealtimeVoiceAgentProfile
     [MarkdownDisplayName("Guidelines")]
     public string Guidelines { get; set; } = string.Empty;
 
-    [MarkdownDisplayName(PersonalityAndToneSection.Title)]
+    [MarkdownDisplayName("Personality and Tone")]
     public PersonalityAndToneSection Personality { get; set; } = new PersonalityAndToneSection();
 
-    [MarkdownDisplayName(ContextSection.Title)]
-    public ContextSection Context { get; set; } = new ContextSection();
+    [MarkdownDisplayName("Context")]
+    public string Context { get; set; } = string.Empty;
 
-    [MarkdownDisplayName(PronunciationSection.Title)]
-    public PronunciationSection Pronunciation { get; set; } = new PronunciationSection();
-
-    public record ContextSection
-    {
-        public const string Title = "Context";
-        public string[] ContextList { get; set; } = [];
-    }
-
-    public record PronunciationSection
-    {
-        public const string Title = "Pronunciation";
-        public string[] PronunciationList { get; set; } = [];
-    }
+    [MarkdownDisplayName("Pronunciation")]
+    public string Pronunciation { get; set; } = string.Empty;
 
     public record PersonalityAndToneSection
     {
-        public const string Title = "Personality and Tone";
-
         [MarkdownDisplayName("Identity")]
         public string Identity { get; set; } = string.Empty;
 
@@ -88,39 +72,46 @@ public partial class RealtimeVoiceAgentProfile
                 .Select(p => new
                 {
                     DisplayName = p.GetCustomAttribute<MarkdownDisplayNameAttribute>()?.DisplayName ?? p.Name,
-                    Value = p.GetValue(this)?.ToString() ?? string.Empty
+                    Value = p.GetValue(this)
                 });
             var sb = new StringBuilder();
             foreach (var prop in properties)
             {
-                if(string.IsNullOrEmpty(prop.Value)) continue; // Skip empty values
+                if(prop.Value is not string textValue || string.IsNullOrEmpty(textValue)) continue; // Skip empty values
                 sb.AppendLine($"## {prop.DisplayName}");
-                sb.AppendLine(prop.Value);
+                sb.AppendLine(textValue);
                 sb.AppendLine();
             }
             return sb.ToString();
         }
+    }
 
-        public PersonalityAndToneSection FromMarkdown(string markdown)
-        {
-            var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
-            var document = Markdown.Parse(markdown, pipeline);
-            var headings = document.Descendants<HeadingBlock>().ToList();
-            foreach (var heading in headings)
+    public string ToMarkdown()
+    {
+        var properties = GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Select(p => new
             {
-                if(heading.Level != 2) continue; // Only process level 2 headings
-                var displayName = heading.GetTitle();
+                DisplayName = p.GetCustomAttribute<MarkdownDisplayNameAttribute>()?.DisplayName ?? p.Name,
+                Value = p.GetValue(this)
+            });
 
-                var content = heading.Get;
-                if (string.IsNullOrEmpty(displayName) || string.IsNullOrEmpty(content)) continue;
-                var property = GetType().GetProperty(displayName);
-                if (property != null)
-                {
-                    property.SetValue(this, content);
-                }
+        var sb = new StringBuilder();
+        foreach (var prop in properties)
+        {
+            if (prop.Value is string textValue && !string.IsNullOrEmpty(textValue))
+            {
+                sb.AppendLine($"## {prop.DisplayName}");
+                sb.AppendLine(textValue);
+                sb.AppendLine();
             }
-            return this;
+            else if (prop.Value is PersonalityAndToneSection personalitySection)
+            {
+                sb.AppendLine($"## {prop.DisplayName}");
+                sb.AppendLine(personalitySection.ToMarkdown());
+            }
+
         }
+        return sb.ToString();
     }
 
 }

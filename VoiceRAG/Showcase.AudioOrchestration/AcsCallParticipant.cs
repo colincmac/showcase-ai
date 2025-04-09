@@ -13,7 +13,7 @@ using System.Text;
 using System.Threading.Tasks;
 using static Showcase.Shared.AIExtensions.Realtime.Telemetry.OpenTelemetryConstants.GenAI;
 
-namespace Showcase.AudioOrchestration;
+namespace Showcase.AI.Voice;
 
 public class AcsCallParticipant : ConversationParticipant
 {

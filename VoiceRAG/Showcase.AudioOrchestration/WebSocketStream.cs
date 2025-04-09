@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Sources;
 
-namespace Showcase.AudioOrchestration;
+namespace Showcase.AI.Voice;
 
 public class WebSocketStream : Stream, IDisposable
 {

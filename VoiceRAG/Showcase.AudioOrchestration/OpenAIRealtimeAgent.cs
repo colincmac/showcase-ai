@@ -4,13 +4,20 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using OpenAI.RealtimeConversation;
 using Showcase.Shared.AIExtensions.Realtime;
+using StackExchange.Redis;
+using System.Reflection;
 using System.Threading.Channels;
+using static Showcase.Shared.AIExtensions.Realtime.Telemetry.OpenTelemetryConstants.GenAI;
 
 
-namespace Showcase.AudioOrchestration;
+namespace Showcase.AI.Voice;
 
 public class OpenAIRealtimeAgent : ConversationParticipant
 {
+
+    //The Session object, which controls the parameters of the interaction, like the model being used, the voice used to generate output, and other configuration.
+    //A Conversation, which represents user input Items and model output Items generated during the current session.
+    //Responses, which are model-generated audio or text Items that are added to the Conversation.
     private readonly RealtimeConversationClient _aiClient;
     private readonly RealtimeSessionOptions _sessionOptions;
 
@@ -147,7 +154,7 @@ public class OpenAIRealtimeAgent : ConversationParticipant
         if (options is null) return new ConversationSessionOptions();
 
         var tools = options.Tools?.OfType<AIFunction>()
-            .Select(t => Showcase.Shared.AIExtensions.Realtime.OpenAIRealtimeExtensions.ToConversationFunctionTool(t)) ?? Enumerable.Empty<ConversationFunctionTool>();
+            .Select(t => Shared.AIExtensions.Realtime.OpenAIRealtimeExtensions.ToConversationFunctionTool(t)) ?? Enumerable.Empty<ConversationFunctionTool>();
 
         ConversationSessionOptions result = new()
         {

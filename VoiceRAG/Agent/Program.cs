@@ -12,8 +12,8 @@ using Microsoft.SemanticKernel;
 
 using Newtonsoft.Json;
 using OpenAI.RealtimeConversation;
+using Showcase.AI.Voice;
 using Showcase.AI.Voice.Tools;
-using Showcase.AudioOrchestration;
 using Showcase.Shared.AIExtensions;
 using Showcase.Shared.AIExtensions.Realtime;
 using Showcase.VoiceRagAgent;
@@ -35,6 +35,7 @@ builder.Services.AddActors(static options =>
     // Register the actors required to run Processes
     options.AddProcessActors();
 });
+
 
 builder.Services.AddEndpointsApiExplorer();
 

@@ -7,9 +7,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using OpenAI.RealtimeConversation;
+using Showcase.AI.Voice;
 using Showcase.AI.Voice.SemanticKernel;
 using Showcase.AI.Voice.Tools;
-using Showcase.AudioOrchestration;
 using Showcase.Shared.AIExtensions.Realtime;
 using System.ClientModel;
 using System.IO;
@@ -27,17 +27,14 @@ var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true)
     .Build();
+
 var azureOpenAIConfig = configuration.GetRequiredSection(AzureOpenAISettings.SectionName).Get<AzureOpenAISettings>();
 
 await StartAsync();
 
-
-
 async Task StartAsync()
 {
     RealtimeConversationClient client = GetConfiguredClientForAzureOpenAIWithKey();
-
-
     var cts = new CancellationTokenSource();
     var options = new RealtimeSessionOptions()
     {

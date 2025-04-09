@@ -15,7 +15,7 @@ using System.Text;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-namespace Showcase.AudioOrchestration;
+namespace Showcase.AI.Voice;
 
 public class RealtimeAgentConversation
 {

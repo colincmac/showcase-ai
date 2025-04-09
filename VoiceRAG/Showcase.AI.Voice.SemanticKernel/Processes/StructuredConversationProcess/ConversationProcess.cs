@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using OpenAI.RealtimeConversation;
-using Showcase.AudioOrchestration;
 using Showcase.Shared.AIExtensions.Realtime;
 using System;
 using System.Collections.Generic;
@@ -19,7 +18,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace Showcase.AI.Voice.SemanticKernel.Processes.RealtimeVoice;
+namespace Showcase.AI.Voice.SemanticKernel.Processes.StructuredConversationProcess;
 
 
 public record AgentStepConfiguration(string Instructions);
@@ -77,6 +76,14 @@ public static class AuthenticationProcess
 
 public static class ConversationProcess
 {
+
+    public static class ConversationProcessTopics
+    {
+        public const string UserName = nameof(UserName);
+        public const string PhoneNumber = nameof(PhoneNumber);
+        public const string AccountNumber = nameof(AccountNumber);
+        public const string DateOfBirth = nameof(DateOfBirth);
+    }
 
     //public static ProcessBuilder CreateProcess(RealtimeConversationClient aiClient, RealtimeSessionOptions sessionOptions, ILoggerFactory loggerFactory, string id, string name)
     public static ProcessBuilder CreateProcess(string? processName = null)
@@ -202,7 +209,7 @@ public static class ConversationProcess
 
         public override ValueTask ActivateAsync(KernelProcessStepState<ConversationState> state)
         {
-            this._state = state.State;
+            _state = state.State;
             Console.WriteLine($"##### HandOffStep activated with info = '{_state}'.");
             return base.ActivateAsync(state);
         }

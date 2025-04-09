@@ -4,7 +4,7 @@ using System.Runtime.Serialization;
 
 namespace Showcase.AI.Voice.SemanticKernel;
 
-public class Steps
+public class Steps2
 {
     public KernelProcess GetProcess()
     {

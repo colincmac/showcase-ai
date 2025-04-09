@@ -8,30 +8,10 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace Showcase.AudioOrchestration;
+namespace Showcase.AI.Voice;
 
 #region Shared Events
 
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum WellKnownEventDataType
-{
-    Text,
-    Audio,
-    Video,
-    Metric
-}
-
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum WellKnownEventType
-{
-    Message,
-    TranscriptText,
-    RawAudio,
-    RawVideo,
-    MetricData,
-    StopAudio,
-    IntentDiscovered
-}
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = nameof(EventType))]
 public abstract record RealtimeEvent()
@@ -105,7 +85,7 @@ public record RealtimeUserIntentFulfilledEvent() : RealtimeEvent
 #endregion
 
 #region Shared Commands
-[JsonPolymorphic(TypeDiscriminatorPropertyName = nameof(EventType))]
+[JsonPolymorphic(TypeDiscriminatorPropertyName = nameof(RealtimeEvent))]
 public abstract record RealtimeCommand()
 {
     public abstract string CommandType { get; }

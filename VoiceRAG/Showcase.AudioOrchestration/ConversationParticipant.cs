@@ -1,8 +1,29 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
-using Showcase.AudioOrchestration;
 using System.Threading.Channels;
 
+namespace Showcase.AI.Voice;
+
+/// <summary>
+/// We have a few frameworks supporting Agents, Actors, and Processes.
+/// https://github.com/microsoft/semantic-kernel/blob/main/dotnet/src/Experimental/Process.Runtime.Dapr/Actors/ProcessActor.cs
+/// https://github.com/microsoft/autogen
+/// https://github.com/microsoft/agent-runtime 
+/// https://github.com/microsoft/semantic-kernel/issues/10418
+/// There's also many general process frameworks like Orleans.
+/// 
+/// Many don't have a concept of a realtime "conversation" or "session" yet.
+/// We need to identify where the perf matters. For example in Dapr, there's perf considerations for Actor activation and transport (HTTP)
+/// In Daprs Actor model, we have a step actor and process actor.
+/// 
+/// Dapr Perf
+/// https://docs.dapr.io/operations/performance-and-scalability/perf-actors-activation/
+/// 
+/// Considerations:
+/// - Likely don't want to add unnecessary steps between actors/participants. Dapr adds a sidecar proxy.
+/// - In Dapr and Orleans, actors are virtual and their lifetime is not tied to their in-memory representation
+/// - This is likely better implemented as a service that scales based on calls or actors. Each pod is either a call or actor
+/// </summary>
 public abstract class ConversationParticipant : IDisposable
 {
     protected ILogger _logger;
@@ -43,7 +64,7 @@ public abstract class ConversationParticipant : IDisposable
 
     public virtual async Task SendAsync(RealtimeEvent incomingEvent, CancellationToken cancellationToken)
     { 
-         await  _inboundChannel.Writer.WriteAsync(incomingEvent, cancellationToken);
+         await _inboundChannel.Writer.WriteAsync(incomingEvent, cancellationToken);
     }
 
     public abstract Task StartResponseAsync(CancellationToken cancellationToken = default);
