@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using OpenAI.RealtimeConversation;
 using Showcase.AI.Voice;
+using Showcase.AI.Voice.ConversationParticipants;
 using Showcase.AI.Voice.SemanticKernel;
 using Showcase.AI.Voice.Tools;
 using Showcase.Shared.AIExtensions.Realtime;
@@ -46,11 +47,11 @@ async Task StartAsync()
         },
     };
     var localParticipant = new TestParticipant();
-    var aiParticipant = new OpenAIRealtimeAgent(client, options, loggerFactory, "aiLocal", "aiLocal");
+    var aiParticipant = new OpenAIVoiceParticipant(client, options, loggerFactory, "aiLocal", "aiLocal");
 
     localParticipant.SubscribeTo(aiParticipant);
     aiParticipant.SubscribeTo(localParticipant);
-    await Task.WhenAll(localParticipant.StartResponseAsync(cts.Token), aiParticipant.StartResponseAsync(cts.Token));
+    await Task.WhenAll(localParticipant.StartAsync(cts.Token), aiParticipant.StartAsync(cts.Token));
 }
 
 

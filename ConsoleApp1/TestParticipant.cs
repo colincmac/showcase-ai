@@ -58,7 +58,7 @@ public class TestParticipant : ConversationParticipant
         speakerOutput.ClearPlayback();
         return Task.CompletedTask;
     }
-    public override async Task StartResponseAsync(CancellationToken cancellationToken = default)
+    public override async Task StartAsync(CancellationToken cancellationToken = default)
     {
             var inbound = Task.Run(() => ProcessInboundEventsAsync(cancellationToken), cancellationToken);
             var outbound = Task.Run(() => ProcessParticipantEventsAsync(cancellationToken), cancellationToken);

@@ -29,7 +29,7 @@ public abstract class ConversationParticipant : IDisposable
     protected ILogger _logger;
     protected CancellationTokenSource _cts = new();
     protected Channel<RealtimeEvent> _inboundChannel;
-    protected Channel<RealtimeEvent> _outboundChannel = Channel.CreateUnbounded<RealtimeEvent>();
+    protected Channel<RealtimeEvent> _outboundChannel;
     private readonly RealtimeEventObservable _outgoingEventsObservable = new();
     private bool _disposed;
 
@@ -50,26 +50,43 @@ public abstract class ConversationParticipant : IDisposable
             SingleWriter = false,
             AllowSynchronousContinuations = false,
         });
+
+        _outboundChannel = Channel.CreateUnbounded<RealtimeEvent>(new UnboundedChannelOptions
+        {
+            SingleReader = false,
+            SingleWriter = true,
+            AllowSynchronousContinuations = false,
+        });
+
         _logger = logger ?? NullLogger.Instance;
         StartBroadcastingOutbound(_cts.Token);
     }
 
+    #region Observable/reactive pattern
+    // TODO: Review
+    // - Should this support synchronous events?
+    // - Should this be a separate class?
+    // - Should this allow unsubscribing
+    // - How is the mutable cancellation token handled?
     public IObservable<RealtimeEvent> Watch() => _outgoingEventsObservable;
     public void SubscribeTo(ConversationParticipant conversationParticipant) => conversationParticipant.Watch().Subscribe(async evt => await SendAsync(evt, _cts.Token));
 
-    public virtual void Send(RealtimeEvent incomingEvent)
-    {
-        _inboundChannel.Writer.TryWrite(incomingEvent);
-    }
+    // TODO: Review, do we need to support non-async methods?
+    //public virtual void Send(RealtimeEvent incomingEvent)
+    //{
+    //    _inboundChannel.Writer.TryWrite(incomingEvent);
+    //}
 
     public virtual async Task SendAsync(RealtimeEvent incomingEvent, CancellationToken cancellationToken)
     { 
          await _inboundChannel.Writer.WriteAsync(incomingEvent, cancellationToken);
     }
+    #endregion
 
-    public abstract Task StartResponseAsync(CancellationToken cancellationToken = default);
 
+    public abstract Task StartAsync(CancellationToken cancellationToken = default);
 
+    // Review: Should we broadcast on StartAsync? Currently starting to broadcast immediately and leaving it up to the subscribers to process incomming events.
     private Task StartBroadcastingOutbound(CancellationToken cancellationToken) =>
         Task<Task?>.Factory.StartNew(
             () => BroadcastUpdatesAsync(cancellationToken),

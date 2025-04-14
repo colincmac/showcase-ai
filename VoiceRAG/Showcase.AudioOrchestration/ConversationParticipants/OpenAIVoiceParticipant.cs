@@ -10,21 +10,23 @@ using System.Threading.Channels;
 using static Showcase.Shared.AIExtensions.Realtime.Telemetry.OpenTelemetryConstants.GenAI;
 
 
-namespace Showcase.AI.Voice;
+namespace Showcase.AI.Voice.ConversationParticipants;
 
-public class OpenAIRealtimeAgent : ConversationParticipant
+// TODO: Allow override for event handling
+
+public class OpenAIVoiceParticipant : ConversationParticipant
 {
 
-    //The Session object, which controls the parameters of the interaction, like the model being used, the voice used to generate output, and other configuration.
-    //A Conversation, which represents user input Items and model output Items generated during the current session.
-    //Responses, which are model-generated audio or text Items that are added to the Conversation.
+    // The Session object, which controls the parameters of the interaction, like the model being used, the voice used to generate output, and other configuration.
+    // A Conversation, which represents user input Items and model output Items generated during the current session.
+    // Responses, which are model-generated audio or text Items that are added to the Conversation.
     private readonly RealtimeConversationClient _aiClient;
     private readonly RealtimeSessionOptions _sessionOptions;
 
     internal Task ParticipantEventProcessing { get; private set; } = Task.CompletedTask;
     internal Task InternalEventProcessing { get; private set; } = Task.CompletedTask;
 
-    public OpenAIRealtimeAgent(
+    public OpenAIVoiceParticipant(
         RealtimeConversationClient aiClient,
         RealtimeSessionOptions sessionOptions,
         ILoggerFactory loggerFactory,
@@ -33,10 +35,10 @@ public class OpenAIRealtimeAgent : ConversationParticipant
     {
         _aiClient = aiClient;
         _sessionOptions = sessionOptions;
-        _logger = loggerFactory.CreateLogger<OpenAIRealtimeAgent>();
+        _logger = loggerFactory.CreateLogger<OpenAIVoiceParticipant>();
     }
 
-    public override async Task StartResponseAsync(CancellationToken cancellationToken = default)
+    public override async Task StartAsync(CancellationToken cancellationToken = default)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _logger.LogInformation("Starting OpenAI Realtime Agent {AgentId} with session options: {SessionOptions}", Id, _sessionOptions);

@@ -18,7 +18,6 @@
     <ProjectReference Include="..\Showcase.Web\Showcase.Web.csproj" />
     <ProjectReference Include="..\VoiceOrchestration\Showcase.VoiceOrchestrator\Showcase.VoiceOrchestrator.csproj" />
     <ProjectReference Include="..\VoiceRAG\Agent\Showcase.VoiceRagAgent.csproj" />
-    <ProjectReference Include="..\VoiceRAG\Showcase.AI.Voice.Agent1\Showcase.AI.Voice.Agent1.csproj" />
   </ItemGroup>
 
   <ItemGroup>

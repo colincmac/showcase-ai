@@ -13,7 +13,7 @@ using System.Text;
 using System.Threading.Tasks;
 using static Showcase.Shared.AIExtensions.Realtime.Telemetry.OpenTelemetryConstants.GenAI;
 
-namespace Showcase.AI.Voice;
+namespace Showcase.AI.Voice.ConversationParticipants;
 
 public class AcsCallParticipant : ConversationParticipant
 {
@@ -37,7 +37,7 @@ public class AcsCallParticipant : ConversationParticipant
         _logger = loggerFactory.CreateLogger<AcsCallParticipant>();
     }
 
-    public override async Task StartResponseAsync(CancellationToken cancellationToken)
+    public override async Task StartAsync(CancellationToken cancellationToken)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _logger.LogInformation("Starting ACS Call Participant {ParticipantId}", Id);

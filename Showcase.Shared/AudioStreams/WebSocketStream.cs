@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Sources;
 
-namespace Showcase.AI.Voice;
+namespace Showcase.Shared.AudioStreams;
 
 public class WebSocketStream : Stream, IDisposable
 {
@@ -17,7 +17,7 @@ public class WebSocketStream : Stream, IDisposable
     private bool _gracefulClose;
 
     private readonly WebSocket _streamWebSocket;
-    private readonly Lock _lock = new();
+    private readonly object _lock = new();
     private bool IsDisposed { get; set; }
 
     // Whether the stream should dispose of the socket when the stream is disposed

@@ -4,8 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Showcase.AI.Voice.AcsHelpers;
-
-class CallAutomation
+namespace Showcase.AI.Voice.Evaluation.Quality;
+internal class CallQuality
 {
 }
