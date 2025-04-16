@@ -5,6 +5,10 @@ namespace Showcase.AI.Voice.Evaluation;
 
 // Speaker Recognition https://learn.microsoft.com/en-us/legal/cognitive-services/speech-service/speaker-recognition/transparency-note-speaker-recognition?context=%2Fazure%2Fai-services%2Fspeech-service%2Fcontext%2Fcontext
 
+// Metrics
+// - Prosody
+// - Background noise
+// - Speaker Idenitty
 public class VoiceConversationEvaluator : IEvaluator
 {
     public IReadOnlyCollection<string> EvaluationMetricNames => throw new NotImplementedException();
