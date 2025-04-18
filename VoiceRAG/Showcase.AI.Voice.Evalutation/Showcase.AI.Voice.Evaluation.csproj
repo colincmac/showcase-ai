@@ -14,4 +14,8 @@
     <ProjectReference Include="..\Showcase.AudioOrchestration\Showcase.AI.Voice.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Realtime\Safety\" />
+  </ItemGroup>
+
 </Project>

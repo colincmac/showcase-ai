@@ -41,9 +41,11 @@ async Task StartAsync()
     {
         ToolChoice = ConversationToolChoice.CreateAutoToolChoice(),
         Tools = [AIFunctionFactory.Create(() => { }, name: "user_wants_to_finish_conversation", description: "Invoked when the user says goodbye, expresses being finished, or otherwise seems to want to stop the interaction.")],
+        ContentModalities = ConversationContentModalities.Default,
         InputTranscriptionOptions = new()
         {
             Model = "whisper-1",
+            
         },
     };
     var localParticipant = new TestParticipant();
