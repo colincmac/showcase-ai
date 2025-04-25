@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Showcase.AI.Voice.Evaluation.Realtime.Safety;
+namespace Showcase.AI.Voice.Evaluation.RealtimeEvaluation.Safety;
 internal class OutputEvaluator
 {
 }

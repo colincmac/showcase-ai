@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Showcase.AI.Voice.Evaluation.Realtime.Quality;
+namespace Showcase.AI.Voice.Evaluation.RealtimeEvaluation.Quality;
 public class ProsodyAndClarityEvaluator : SingleNumericMetricEvaluator
 {
     protected override string MetricName => throw new NotImplementedException();
