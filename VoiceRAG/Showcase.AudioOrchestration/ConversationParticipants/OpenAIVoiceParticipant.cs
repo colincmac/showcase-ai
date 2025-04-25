@@ -6,6 +6,7 @@ using OpenAI.RealtimeConversation;
 using Showcase.Shared.AIExtensions.Realtime;
 using StackExchange.Redis;
 using System.Reflection;
+using System.Text.Json;
 using System.Threading.Channels;
 using static Showcase.Shared.AIExtensions.Realtime.Telemetry.OpenTelemetryConstants.GenAI;
 
@@ -63,7 +64,7 @@ public class OpenAIVoiceParticipant : ConversationParticipant
             var tools = _sessionOptions.Tools?.OfType<AIFunction>().ToList();
             await foreach (var update in session.ReceiveUpdatesAsync(cancellationToken))
             {
-                _logger.LogDebug("Received update: {Update}", update);
+                //_logger.LogDebug("Received update: {Update}", update);
 
                 if (update is ConversationItemStreamingPartDeltaUpdate deltaUpdate)
                 {
@@ -105,7 +106,10 @@ public class OpenAIVoiceParticipant : ConversationParticipant
                     _logger.LogDebug("Session configured with options: {SessionOptions}", sessionConfigured.ToString());
                     await session.StartResponseAsync(cancellationToken);
                 }
-
+                if (update is ConversationResponseFinishedUpdate turnFinished)
+                {
+                    _logger.LogDebug("ConversationResponseFinishedUpdate: {SessionOptions}", JsonSerializer.Serialize(turnFinished));
+                }
                 if (tools is not null)
                     await Shared.AIExtensions.Realtime.OpenAIRealtimeExtensions.HandleToolCallsAsync(session, update, tools, cancellationToken: cancellationToken);
             }

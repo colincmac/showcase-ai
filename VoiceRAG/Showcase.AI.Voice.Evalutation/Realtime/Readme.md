@@ -7,7 +7,7 @@ https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/develop/evaluate-sdk
 https://github.com/microsoft/teams-ai/tree/main/dotnet/packages/Microsoft.TeamsAI/Microsoft.TeamsAI/AI/Moderator
 https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/develop/evaluate-sdk#data-requirements-for-built-in-evaluators
 User Input -> System Prompt -> 
-
+https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/content-filter?tabs=warning%2Cuser-prompt%2Cpython-new#content-streaming
 Request
     /// <inheritdoc cref="InternalAzureContentFilterResultForPromptContentFilterResults.Sexual"/>
     public ContentFilterSeverityResult Sexual => InternalResults?.Sexual;

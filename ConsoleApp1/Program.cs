@@ -5,6 +5,7 @@ using ConsoleApp1;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using Microsoft.SemanticKernel;
 using OpenAI.RealtimeConversation;
 using Showcase.AI.Voice;
@@ -21,7 +22,11 @@ using System.Threading.Tasks;
 
 Console.WriteLine("Hello, World!");
 var kernel = Kernel.CreateBuilder().Build();
-var loggerFactory = new LoggerFactory();
+var loggerFactory = LoggerFactory.Create(builder =>
+{
+    builder.AddConsole();
+    builder.SetMinimumLevel(LogLevel.Debug);
+});
 
 var configuration = new ConfigurationBuilder()
     .AddEnvironmentVariables()
@@ -47,6 +52,7 @@ async Task StartAsync()
             Model = "whisper-1",
             
         },
+        
     };
     var localParticipant = new TestParticipant();
     var aiParticipant = new OpenAIVoiceParticipant(client, options, loggerFactory, "aiLocal", "aiLocal");

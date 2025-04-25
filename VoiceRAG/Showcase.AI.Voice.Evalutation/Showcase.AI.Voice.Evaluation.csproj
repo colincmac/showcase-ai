@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.13.2" />
     <PackageReference Include="Microsoft.Extensions.AI.Evaluation.Quality" Version="9.4.0-preview.1.25207.5" />
     <PackageReference Include="Microsoft.Extensions.AI.Evaluation.Safety" Version="9.4.0-preview.1.25207.5" />
   </ItemGroup>
