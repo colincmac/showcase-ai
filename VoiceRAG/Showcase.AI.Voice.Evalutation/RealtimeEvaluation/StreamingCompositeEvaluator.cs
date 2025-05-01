@@ -7,20 +7,23 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Azure.AI.ContentSafety;
+using Azure.Identity;
 
 namespace Showcase.AI.Voice.Evaluation.RealtimeEvaluation;
 
-// Possibly use async filters with annotation only?
+// Possibly allow the use the ChatCompletions API with async filters instead?
 // https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/content-filter?tabs=warning%2Cuser-prompt%2Cpython-new#sample-response-stream-passes-filters
 // https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/content-filter?tabs=warning%2Cuser-prompt%2Cpython-new#asynchronous-filter
 // https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/content-filter?tabs=warning%2Cuser-prompt%2Cpython-new#content-streaming
-public abstract class StreamingCompositeEvaluator: IStreamingEvaluator, IAsyncDisposable
+public class StreamingCompositeEvaluator: IStreamingEvaluator, IAsyncDisposable
 {
     private readonly IReadOnlyList<IEvaluator> _evaluators;
     public IReadOnlyCollection<string> EvaluationMetricNames { get; }
 
     public StreamingCompositeEvaluator(IEnumerable<IEvaluator> evaluators)
     {
+        var t = new ContentSafetyClient(new Uri("https://<your-endpoint>.cognitiveservices.azure.com/"), new DefaultAzureCredential());
         ArgumentNullException.ThrowIfNull(evaluators);
 
         var metricNames = new HashSet<string>();
@@ -48,7 +51,7 @@ public abstract class StreamingCompositeEvaluator: IStreamingEvaluator, IAsyncDi
 
 
     /// <summary>
-    /// Evaluates the given messages and model response using the provided evaluators, returning the final result.
+    /// Evaluates the given messages and model response using the provided evaluators, returning the final EvaluationResult result.
     /// See (CompositeEvaluator)[https://github.com/dotnet/extensions/blob/main/src/Libraries/Microsoft.Extensions.AI.Evaluation/CompositeEvaluator.cs]    
     /// </summary>
     public async ValueTask<EvaluationResult> EvaluateAsync(
@@ -71,7 +74,7 @@ public abstract class StreamingCompositeEvaluator: IStreamingEvaluator, IAsyncDi
 
 
     /// <summary>
-    /// Evaluates the given messages and model response using the provided evaluators, streaming the results as they become available.
+    /// Evaluates the given messages and model response using the provided evaluators, streaming the resulting EvaluationResult items as they become available.
     /// </summary>
     public async IAsyncEnumerable<EvaluationResult> EvaluateAndStreamResultsAsync(
         IEnumerable<ChatMessage> messages,

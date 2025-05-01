@@ -27,7 +27,8 @@ public class UserIntentEvaluator
     private readonly ContentSafetyServiceConfiguration? _safetyServiceConfiguration;
     private readonly IStreamingEvaluator _streamingCompositeEvaluator;
     private readonly IEnumerable<IEvaluator> _evaluators;
-    public UserIntentEvaluator(ContentSafetyServiceConfiguration contentSafetyServiceConfiguration, IEnumerable<IEvaluator> customEvaluators)
+
+    public UserIntentEvaluator(ContentSafetyServiceConfiguration contentSafetyServiceConfiguration, IEnumerable<IEvaluator>? customEvaluators = default)
     {
         _safetyServiceConfiguration = contentSafetyServiceConfiguration;
         _evaluators = customEvaluators ?? new List<IEvaluator>
@@ -38,6 +39,21 @@ public class UserIntentEvaluator
            new IndirectAttackEvaluator(contentSafetyServiceConfiguration)
         };
         _streamingCompositeEvaluator = new StreamingCompositeEvaluator(_evaluators);
+    }
+
+    public async ValueTask<EvaluationResult> EvaluateUserIntentAsync(IEnumerable<ChatMessage> messages, ChatResponse modelResponse, CancellationToken cancellationToken = default)
+    {
+        return await _streamingCompositeEvaluator.EvaluateAsync(messages, modelResponse, cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    public IAsyncEnumerable<EvaluationResult> EvaluateAndStreamResultsAsync(
+        IEnumerable<ChatMessage> messages,
+        ChatResponse modelResponse,
+        ChatConfiguration? chatConfiguration = null,
+        IEnumerable<EvaluationContext>? additionalContext = null,
+        CancellationToken cancellationToken = default)
+    {
+        return _streamingCompositeEvaluator.EvaluateAndStreamResultsAsync(messages, modelResponse, chatConfiguration, additionalContext, cancellationToken);
     }
 
 }

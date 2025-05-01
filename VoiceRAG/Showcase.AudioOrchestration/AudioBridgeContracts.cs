@@ -1,5 +1,6 @@
 ﻿#pragma warning disable OPENAI002
 
+using Microsoft.Extensions.AI;
 using OpenAI.RealtimeConversation;
 using System;
 using System.Collections.Generic;
@@ -25,21 +26,23 @@ public abstract record RealtimeEvent()
 };
 
 [JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeAudioDeltaEvent))]
-public record RealtimeAudioDeltaEvent(BinaryData AudioData, string? TranscriptText = null) : RealtimeEvent
+public record RealtimeAudioDeltaEvent(BinaryData AudioData, string ConversationRole, string? TranscriptText = null) : RealtimeEvent
 {
     public override string EventType => nameof(RealtimeAudioDeltaEvent);
-    public bool IsEmpty => AudioData is null || AudioData.IsEmpty;
+    public bool IsAudioEmpty => AudioData is null || AudioData.IsEmpty;
+    public bool IsTranscriptEmpty => string.IsNullOrEmpty(TranscriptText);
 };
 
+
 [JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeMessageEvent))]
-public record RealtimeMessageEvent(IEnumerable<string> ChatMessageContent, string ConversationMessageRole) : RealtimeEvent
+public record RealtimeMessageEvent(IEnumerable<string> ChatMessageContent, string ConversationRole) : RealtimeEvent
 {
     public override string EventType => nameof(RealtimeMessageEvent);
     public bool IsEmpty => !ChatMessageContent.Any();
 }
 
 [JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeTranscriptFinishedEvent))]
-public record RealtimeTranscriptFinishedEvent(string Transcription) : RealtimeEvent
+public record RealtimeTranscriptFinishedEvent(string Transcription, string ConversationRole) : RealtimeEvent
 {
     public override string EventType => nameof(RealtimeTranscriptFinishedEvent);
     public bool IsEmpty => string.IsNullOrWhiteSpace(Transcription);
@@ -55,44 +58,31 @@ public record RealtimeMetricDeltaEvent(BinaryData Metric) : RealtimeEvent
 
 // Similar to Stop Audio from ACS
 [JsonDerivedType(typeof(RealtimeEvent), nameof(ParticipantStartedSpeakingEvent))]
-public record ParticipantStartedSpeakingEvent() : RealtimeEvent
+public record ParticipantStartedSpeakingEvent(string ConversationRole, string ParticipantId) : RealtimeEvent
 {
     public override string EventType => nameof(ParticipantStartedSpeakingEvent);
     public bool IsEmpty => false;
 }
 
 [JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeVideoDeltaEvent))]
-public record RealtimeVideoDeltaEvent(BinaryData VideoData) : RealtimeEvent
+public record RealtimeVideoDeltaEvent(BinaryData VideoData, string ConversationRole) : RealtimeEvent
 {
     public override string EventType => nameof(RealtimeVideoDeltaEvent);
     public bool IsEmpty => VideoData.IsEmpty;
 }
 
 [JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeUserIntentDiscoveredEvent))]
-public record RealtimeUserIntentDiscoveredEvent() : RealtimeEvent
+public record RealtimeUserIntentDiscoveredEvent(string ParticipantId, string Intent) : RealtimeEvent
 {
     public override string EventType => nameof(RealtimeUserIntentDiscoveredEvent);
     public bool IsEmpty => true;
 }
 
 [JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeUserIntentFulfilledEvent))]
-public record RealtimeUserIntentFulfilledEvent() : RealtimeEvent
+public record RealtimeUserIntentFulfilledEvent(string ConversationRole, string ParticipantId) : RealtimeEvent
 {
     public override string EventType => nameof(RealtimeUserIntentFulfilledEvent);
     public bool IsEmpty => true;
 }
 
-#endregion
-
-#region Shared Commands
-[JsonPolymorphic(TypeDiscriminatorPropertyName = nameof(RealtimeEvent))]
-public abstract record RealtimeCommand()
-{
-    public abstract string CommandType { get; }
-
-    public Guid EventId { get; init; } = Guid.CreateVersion7(DateTimeOffset.UtcNow);
-    public string ServiceEventType { get; init; } = string.Empty;
-    public string SourceId { get; init; } = string.Empty;
-    public string SourceName { get; init; } = string.Empty;
-};
 #endregion

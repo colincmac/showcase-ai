@@ -48,7 +48,7 @@ public class TestParticipant : ConversationParticipant
     public Task SendAudioAsync(RealtimeAudioDeltaEvent audioEvent, CancellationToken cancellationToken)
     {
         // Process the audio event
-        if(audioEvent.IsEmpty) return Task.CompletedTask;
+        if(audioEvent.IsAudioEmpty) return Task.CompletedTask;
         speakerOutput.EnqueueForPlayback(audioEvent.AudioData);
         return Task.CompletedTask;
     }

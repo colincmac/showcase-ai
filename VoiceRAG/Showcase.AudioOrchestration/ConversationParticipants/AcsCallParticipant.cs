@@ -67,7 +67,7 @@ public class AcsCallParticipant : ConversationParticipant
 
                 var resultData = buffer.Take(result.Count).ToArray();
 
-                if (TryGetAudioFromResponse(resultData) is RealtimeAudioDeltaEvent audioEvent && !audioEvent.IsEmpty)
+                if (TryGetAudioFromResponse(resultData) is RealtimeAudioDeltaEvent audioEvent && !audioEvent.IsAudioEmpty)
                 {
                     await _outboundChannel.Writer.WriteAsync(audioEvent, cancellationToken).ConfigureAwait(false);
                 }
@@ -141,7 +141,7 @@ public class AcsCallParticipant : ConversationParticipant
         var input = StreamingData.Parse(data);
         if(input is not AudioData audioData || audioData.IsSilent) return null;
 
-        return new RealtimeAudioDeltaEvent(AudioData: new BinaryData(audioData.Data))
+        return new RealtimeAudioDeltaEvent(ConversationRole: ChatRole.User, AudioData: new BinaryData(audioData.Data))
         {
             ServiceEventType = StreamingDataKind.AudioData.ToString(),
             SourceId = Id,
