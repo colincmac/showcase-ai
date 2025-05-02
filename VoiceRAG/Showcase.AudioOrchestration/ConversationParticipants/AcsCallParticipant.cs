@@ -141,7 +141,7 @@ public class AcsCallParticipant : ConversationParticipant
         var input = StreamingData.Parse(data);
         if(input is not AudioData audioData || audioData.IsSilent) return null;
 
-        return new RealtimeAudioDeltaEvent(ConversationRole: ChatRole.User, AudioData: new BinaryData(audioData.Data))
+        return new RealtimeAudioDeltaEvent(ConversationRole: ChatRole.User.Value, AudioData: new BinaryData(audioData.Data))
         {
             ServiceEventType = StreamingDataKind.AudioData.ToString(),
             SourceId = Id,

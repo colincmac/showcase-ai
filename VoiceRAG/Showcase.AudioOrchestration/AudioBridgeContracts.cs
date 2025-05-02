@@ -58,7 +58,7 @@ public record RealtimeMetricDeltaEvent(BinaryData Metric) : RealtimeEvent
 
 // Similar to Stop Audio from ACS
 [JsonDerivedType(typeof(RealtimeEvent), nameof(ParticipantStartedSpeakingEvent))]
-public record ParticipantStartedSpeakingEvent(string ConversationRole, string ParticipantId) : RealtimeEvent
+public record ParticipantStartedSpeakingEvent(string ConversationRole) : RealtimeEvent
 {
     public override string EventType => nameof(ParticipantStartedSpeakingEvent);
     public bool IsEmpty => false;

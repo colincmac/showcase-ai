@@ -71,7 +71,7 @@ public class OpenAIVoiceParticipant : ConversationParticipant
                     _logger.LogDebug("Delta Output Transcript: {AudioTranscript}", deltaUpdate.AudioTranscript);
                     _logger.LogDebug("Delta TextOnly Update: {Text}", deltaUpdate.Text);
 
-                    var evt = new RealtimeAudioDeltaEvent(AudioData: deltaUpdate.AudioBytes, TranscriptText: deltaUpdate.AudioTranscript)
+                    var evt = new RealtimeAudioDeltaEvent(AudioData: deltaUpdate.AudioBytes, ConversationRole: ChatRole.Assistant.Value, TranscriptText: deltaUpdate.AudioTranscript)
                     {
                         ServiceEventType = deltaUpdate.Kind.ToString(),
                         SourceId = Id
@@ -82,7 +82,7 @@ public class OpenAIVoiceParticipant : ConversationParticipant
                 {
                     _logger.LogDebug("Incoming audio to AI Agent. Barge-in by stopping all in-transit outgoing audio");
 
-                    var evt = new ParticipantStartedSpeakingEvent()
+                    var evt = new ParticipantStartedSpeakingEvent(ConversationRole: ChatRole.User.Value)
                     {
                         ServiceEventType = speechStartedUpdate.Kind.ToString(),
                         SourceId = Id
@@ -93,7 +93,7 @@ public class OpenAIVoiceParticipant : ConversationParticipant
                 {
                     _logger.LogDebug("Delta Input Transcript: {AudioTranscript}", inputTranscriptionFinished.Transcript);
 
-                    var evt = new RealtimeTranscriptFinishedEvent(Transcription: inputTranscriptionFinished.Transcript)
+                    var evt = new RealtimeTranscriptFinishedEvent(Transcription: inputTranscriptionFinished.Transcript, ConversationRole: ChatRole.User.Value)
                     {
                         ServiceEventType = inputTranscriptionFinished.Kind.ToString(),
                         SourceId = Id
