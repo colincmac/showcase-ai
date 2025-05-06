@@ -1,9 +1,11 @@
 ﻿using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using OpenAI.RealtimeConversation;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
@@ -12,9 +14,10 @@ public class ChatAuditorParticipant : ConversationParticipant
 {
 
     internal Task InternalEventProcessing { get; private set; } = Task.CompletedTask;
+    internal Task ParticipantEventProcessing { get; private set; } = Task.CompletedTask;
     private readonly IChatClient _contentSafetyChatClient;
     protected Channel<string> _partialTranscriptBuffer;
-    private const int ResponseTranscriptSegments = 5;
+
     public ChatAuditorParticipant(IChatClient contentSafetyChatClient, string? id, string? name, ILogger? logger = null) : base(id, name, logger)
     {
         // Currently, we need to use a streaming annotation to get the content safety results. This is enabled with async filters.
@@ -28,6 +31,7 @@ public class ChatAuditorParticipant : ConversationParticipant
         InternalEventProcessing = Task.Run(() => ProcessInboundEvents(_cts.Token), _cts.Token);
         await Task.WhenAll(InternalEventProcessing).ConfigureAwait(false);
     }
+   
 
     private async Task ProcessInboundEvents(CancellationToken cancellationToken)
     {
@@ -35,8 +39,12 @@ public class ChatAuditorParticipant : ConversationParticipant
         {
             await foreach (var internalEvent in _inboundChannel.Reader.ReadAllAsync(cancellationToken))
             {
+
+                if (internalEvent is RealtimeTranscriptFinishedEvent transcriptEvent && !transcriptEvent.IsEmpty)
+                    await HandleTranscriptAsync(transcriptEvent, cancellationToken);
+
                 if (internalEvent is RealtimeAudioDeltaEvent audioEvent && !audioEvent.IsTranscriptEmpty)
-                    await HandleTranscriptAsync(audioEvent, cancellationToken);
+                    await HandleTranscriptDeltaAsync(audioEvent, cancellationToken);
             }
         }
         catch (Exception ex)
@@ -45,15 +53,20 @@ public class ChatAuditorParticipant : ConversationParticipant
         }
     }
 
-    private async Task HandleTranscriptAsync(RealtimeAudioDeltaEvent audioEvent, CancellationToken cancellationToken)
+    private async Task HandleTranscriptAsync(RealtimeTranscriptFinishedEvent transcriptEvent, CancellationToken cancellationToken)
     {
-        var role = Enum.TryParse<ChatRole>(audioEvent.ConversationRole, true, out var parsedRole) ? parsedRole : ChatRole.Assistant;
-        await foreach(var response in _contentSafetyChatClient.GetStreamingResponseAsync(
-            chatMessage: new ChatMessage(role: role, content: audioEvent.TranscriptText),
+        
+        await foreach (var response in _contentSafetyChatClient.GetStreamingResponseAsync(
+            chatMessage: new ChatMessage(role: new ChatRole(transcriptEvent.ConversationRole), 
+            content: transcriptEvent.Transcription),
             cancellationToken: cancellationToken))
         {
-            _logger.LogDebug("Received response: {Response}", response);
-
-        };
+           _logger.LogDebug("Received response: {Response}", response);
+        }
+    }
+    private Task HandleTranscriptDeltaAsync(RealtimeAudioDeltaEvent audioEvent, CancellationToken cancellationToken)
+    {
+        // Currently not implemented, but we could use this to send partial transcripts to the content safety client.
+        return Task.CompletedTask;
     }
 }

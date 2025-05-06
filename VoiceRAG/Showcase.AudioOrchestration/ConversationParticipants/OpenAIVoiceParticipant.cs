@@ -74,7 +74,7 @@ public class OpenAIVoiceParticipant : ConversationParticipant
                     var evt = new RealtimeAudioDeltaEvent(AudioData: deltaUpdate.AudioBytes, ConversationRole: ChatRole.Assistant.Value, TranscriptText: deltaUpdate.AudioTranscript)
                     {
                         ServiceEventType = deltaUpdate.Kind.ToString(),
-                        SourceId = Id
+                        AuthorId = Id
                     };
                     await _outboundChannel.Writer.WriteAsync(evt, cancellationToken);
                 }
@@ -84,19 +84,37 @@ public class OpenAIVoiceParticipant : ConversationParticipant
 
                     var evt = new ParticipantStartedSpeakingEvent(ConversationRole: ChatRole.User.Value)
                     {
-                        ServiceEventType = speechStartedUpdate.Kind.ToString(),
-                        SourceId = Id
+                        ServiceEventType = speechStartedUpdate.Kind.ToString()
                     };
                     await _outboundChannel.Writer.WriteAsync(evt, cancellationToken);
                 }
+
+                // User Audio Input Transcript
                 if (update is ConversationInputTranscriptionFinishedUpdate inputTranscriptionFinished)
                 {
-                    _logger.LogDebug("Delta Input Transcript: {AudioTranscript}", inputTranscriptionFinished.Transcript);
-
+                    _logger.LogDebug("Input Transcript Finished: {AudioTranscript}", inputTranscriptionFinished.Transcript);
                     var evt = new RealtimeTranscriptFinishedEvent(Transcription: inputTranscriptionFinished.Transcript, ConversationRole: ChatRole.User.Value)
                     {
                         ServiceEventType = inputTranscriptionFinished.Kind.ToString(),
-                        SourceId = Id
+                        EventId = inputTranscriptionFinished.EventId,
+                        ContentIndex = inputTranscriptionFinished.ContentIndex,
+                    };
+                    await _outboundChannel.Writer.WriteAsync(evt, cancellationToken);
+                }
+
+                // AI Output Transcript
+                if (update is ConversationItemStreamingAudioTranscriptionFinishedUpdate outputTranscriptionFinished)
+                {
+                    _logger.LogDebug("Output Transcript finished: {Response}", outputTranscriptionFinished.ToString());
+                    
+                    var evt = new RealtimeTranscriptFinishedEvent(Transcription: outputTranscriptionFinished.Transcript, ConversationRole: ChatRole.Assistant.Value)
+                    {
+                        ServiceEventType = outputTranscriptionFinished.Kind.ToString(),
+                        AuthorId = Id,
+                        AuthorName = Name,
+                        EventId = outputTranscriptionFinished.EventId,
+                        OutputIndex = outputTranscriptionFinished.OutputIndex,
+                        ContentIndex = outputTranscriptionFinished.ContentIndex,
                     };
                     await _outboundChannel.Writer.WriteAsync(evt, cancellationToken);
                 }
@@ -106,12 +124,14 @@ public class OpenAIVoiceParticipant : ConversationParticipant
                     _logger.LogDebug("Session configured with options: {SessionOptions}", sessionConfigured.ToString());
                     await session.StartResponseAsync(cancellationToken);
                 }
+
                 if (update is ConversationResponseFinishedUpdate turnFinished)
                 {
                     _logger.LogDebug("ConversationResponseFinishedUpdate: {SessionOptions}", JsonSerializer.Serialize(turnFinished));
                 }
+
                 if (tools is not null)
-                    await Shared.AIExtensions.Realtime.OpenAIRealtimeExtensions.HandleToolCallsAsync(session, update, tools, cancellationToken: cancellationToken);
+                    await OpenAIRealtimeExtensions.HandleToolCallsAsync(session, update, tools, cancellationToken: cancellationToken);
             }
         }
         
@@ -133,11 +153,12 @@ public class OpenAIVoiceParticipant : ConversationParticipant
 
             await foreach (var internalEvent in _inboundChannel.Reader.ReadAllAsync(cancellationToken))
             {
+                // Prioritize Audio events
                 if (internalEvent is RealtimeAudioDeltaEvent audioEvent) 
                     await HandleAudioAsync(session, audioEvent, cancellationToken);
 
                 if (internalEvent is RealtimeMessageEvent chatEvent) 
-                    await session.AddItemAsync(ConversationItem.CreateSystemMessage(chatEvent.ChatMessageContent.Select(t => (ConversationContentPart)t)), cancellationToken);
+                    await HandleMessageAsync(session, chatEvent, cancellationToken);
             }
         }
         catch (Exception ex)
@@ -152,6 +173,18 @@ public class OpenAIVoiceParticipant : ConversationParticipant
         using var audioStream = new MemoryStream(audioEvent.AudioData.ToArray());
 
         await session.SendInputAudioAsync(audioStream, _cts.Token);
+    }
+
+    private async Task HandleMessageAsync(RealtimeConversationSession session, RealtimeMessageEvent messageEvent, CancellationToken cancellationToken)
+    {
+        var conversationItem = messageEvent.ConversationRole switch
+        {
+            var role when role == ChatRole.User.Value => ConversationItem.CreateUserMessage(messageEvent.ChatMessageContent.Select(t => ConversationContentPart.CreateInputTextPart(t))),
+            var role when role == ChatRole.Assistant.Value => ConversationItem.CreateAssistantMessage(messageEvent.ChatMessageContent.Select(t => ConversationContentPart.CreateInputTextPart(t))),
+            var role when role == ChatRole.System.Value => ConversationItem.CreateSystemMessage(messageEvent.ChatMessageContent.Select(t => ConversationContentPart.CreateInputTextPart(t))),
+            _ => ConversationItem.CreateSystemMessage(messageEvent.ChatMessageContent.Select(t => ConversationContentPart.CreateInputTextPart(t)))
+        };
+        await session.AddItemAsync(conversationItem, cancellationToken);
     }
 
 

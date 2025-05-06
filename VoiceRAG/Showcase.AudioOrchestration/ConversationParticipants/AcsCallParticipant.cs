@@ -144,7 +144,7 @@ public class AcsCallParticipant : ConversationParticipant
         return new RealtimeAudioDeltaEvent(ConversationRole: ChatRole.User.Value, AudioData: new BinaryData(audioData.Data))
         {
             ServiceEventType = StreamingDataKind.AudioData.ToString(),
-            SourceId = Id,
+            AuthorId = Id,
         };
     }
 

@@ -6,6 +6,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using OpenAIJsonContext = Showcase.Shared.AIExtensions.Realtime.OpenAIJsonContext;
 namespace Showcase.Shared.AIExtensions.Realtime;
+
+/// <summary>
+///  See https://github.com/dotnet/extensions/issues/6278
+/// </summary>
 public static class OpenAIRealtimeExtensions
 {
     /// <summary>
@@ -20,10 +24,8 @@ public static class OpenAIRealtimeExtensions
 
         ConversationFunctionToolParametersSchema functionToolSchema = JsonSerializer.Deserialize(aiFunction.JsonSchema, OpenAIJsonContext.Default.ConversationFunctionToolParametersSchema)!;
         BinaryData functionParameters = new(JsonSerializer.SerializeToUtf8Bytes(functionToolSchema, OpenAIJsonContext.Default.ConversationFunctionToolParametersSchema));
-        var t = ConversationFunctionTool.CreateFunctionTool(aiFunction.Name, aiFunction.Description, functionParameters);
         return new ConversationFunctionTool(aiFunction.Name)
         {
-            Name = aiFunction.Name,
             Description = aiFunction.Description,
             Parameters = functionParameters
         };
@@ -101,7 +103,7 @@ public static class OpenAIRealtimeExtensions
 
             try
             {
-                var result = await aiFunction.InvokeAsync(functionCallContent.Arguments, cancellationToken).ConfigureAwait(false);
+                var result = await aiFunction.InvokeAsync(new(functionCallContent.Arguments) { Services = functionInvocationServices }, cancellationToken).ConfigureAwait(false);
                 var resultJson = JsonSerializer.Serialize(result, jsonOptions.GetTypeInfo(typeof(object)));
                 return ConversationItem.CreateFunctionCallOutput(update.FunctionCallId, resultJson);
             }

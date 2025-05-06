@@ -1,4 +1,5 @@
-﻿using Showcase.AI.Voice;
+﻿using Microsoft.Extensions.AI;
+using Showcase.AI.Voice;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -40,7 +41,12 @@ public class TestParticipant : ConversationParticipant
             ReadOnlyMemory<byte> audioMemory = buffer.AsMemory(0, bytesRead);
             BinaryData audioData = BinaryData.FromBytes(audioMemory);
 
-            var audioEvent = new RealtimeAudioDeltaEvent(AudioData: audioData); // Replace with actual audio data
+            var audioEvent = new RealtimeAudioDeltaEvent(AudioData: audioData, ConversationRole: ChatRole.User.Value)
+            {
+                ServiceEventType = "MicrophoneAudio",
+                AuthorId = Id,
+                AuthorName = Name,
+            }; // Replace with actual audio data
             await _outboundChannel.Writer.WriteAsync(audioEvent, cancellationToken).ConfigureAwait(false);
         }
     }

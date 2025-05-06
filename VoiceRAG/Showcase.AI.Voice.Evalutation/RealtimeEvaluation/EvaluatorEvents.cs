@@ -1,5 +1,4 @@
-﻿using Google.Protobuf;
-using Microsoft.Extensions.AI;
+﻿using Microsoft.Extensions.AI;
 using Microsoft.Extensions.AI.Evaluation;
 using System;
 using System.Collections.Generic;

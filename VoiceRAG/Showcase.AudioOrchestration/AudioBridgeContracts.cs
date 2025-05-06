@@ -19,10 +19,12 @@ public abstract record RealtimeEvent()
 {
     public abstract string EventType { get; }
 
-    public Guid EventId { get; init; } = Guid.CreateVersion7(DateTimeOffset.UtcNow);
+    public string EventId { get; init; } = Guid.CreateVersion7(DateTimeOffset.UtcNow).ToString();
     public string ServiceEventType { get; init; } = string.Empty;
-    public string SourceId { get; init; } = string.Empty;
-    public string SourceName { get; init; } = string.Empty;
+    public string AuthorId { get; init; } = string.Empty;
+    public string? AuthorName { get; init; } = string.Empty;
+    public int OutputIndex { get; init; } = 0;
+    public int ContentIndex { get; init; } = 0;
 };
 
 [JsonDerivedType(typeof(RealtimeEvent), nameof(RealtimeAudioDeltaEvent))]
