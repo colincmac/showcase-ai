@@ -1,0 +1,6 @@
+@Showcase.AI.Voice.McpServer_HostAddress = http://localhost:5001
+
+GET {{Showcase.AI.Voice.McpServer_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
