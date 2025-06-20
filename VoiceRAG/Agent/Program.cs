@@ -7,8 +7,6 @@ using Azure.Messaging.EventGrid.SystemEvents;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
-using Microsoft.SemanticKernel;
-#pragma warning disable SKEXP0080 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
 using Newtonsoft.Json;
 using OpenAI.RealtimeConversation;
@@ -25,18 +23,6 @@ AppContext.SetSwitch("OpenAI.Experimental.EnableOpenTelemetry", true);
 
 builder.AddServiceDefaults();
 
-// Actor Experimental
-builder.Services.AddDaprClient();
-builder.Services.AddKernel();
-
-// Configure Dapr
-builder.Services.AddActors(static options =>
-{
-    // Register the actors required to run Processes
-    options.AddProcessActors();
-});
-
-
 builder.Services.AddEndpointsApiExplorer();
 
 // From Aspire
@@ -48,10 +34,9 @@ builder.Services.Configure<VoiceRagOptions>(
 builder.Services.AddSingleton<IAIToolHandler, ReferenceDataTools>();
 builder.Services.AddSingleton<IAIToolRegistry, AIToolRegistry>();
 
-var teamsAppId = builder.Configuration.GetValue<string>("TeamsAppId");
-var teamsAppIdentifier = new MicrosoftTeamsAppIdentifier(teamsAppId);
-
-builder.Services.AddSingleton(sp =>
+//var teamsAppId = builder.Configuration.GetValue<string>("TeamsAppId");
+//var teamsAppIdentifier = new MicrosoftTeamsUserIdentifier(teamsAppId);
+builder.Services.AddScoped(sp =>
 {
     var options = sp.GetRequiredService<IOptions<VoiceRagOptions>>().Value;
     return new CallAutomationClient(connectionString: options.AcsConnectionString);
@@ -82,8 +67,6 @@ if (string.IsNullOrEmpty(appBaseUrl))
     appBaseUrl = $"https://{websiteHostName}";
     Console.WriteLine($"appBaseUrl :{appBaseUrl}");
 }
-
-app.MapActorsHandlers();
 
 app.MapGet("/", () => "Hello ACS CallAutomation!");
 
@@ -171,15 +154,15 @@ app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configur
             //var voiceClient = openAIClient.AsVoiceClient(config.AzureOpenAIDeploymentModelName, voiceClientLogger);
             var realtimeClient = openAIClient.GetRealtimeConversationClient(config.AzureOpenAIDeploymentModelName);
 
-            //IList<AITool> tools = [AIFunctionFactory.Create(GetRoomCapacity)];
+            IList<AITool> tools = [AIFunctionFactory.Create(GetRoomCapacity), AIFunctionFactory.Create(BookRoom)];
 
             RealtimeSessionOptions sessionOptions = new()
             {
                 Instructions = config.AzureOpenAISystemPrompt,
-                Voice = ConversationVoice.Shimmer,
+                Voice = ConversationVoice.Coral,
                 InputAudioFormat = ConversationAudioFormat.Pcm16,
                 OutputAudioFormat = ConversationAudioFormat.Pcm16,
-                Tools = toolRegistry.ToArray(),
+                Tools = tools.ToArray(),
                 //InputTranscriptionOptions = new()
                 //{
                 //// OpenAI realtime excepts raw audio in/out and uses another model for transcriptions in parallel
@@ -215,6 +198,32 @@ static int GetRoomCapacity(RoomType roomType)
         RoomType.ShuttleSimulator => throw new InvalidOperationException("No longer available"),
         RoomType.NorthAtlantisLawn => 450,
         RoomType.VehicleAssemblyBuilding => 12000,
+        _ => throw new NotSupportedException($"Unknown room type: {roomType}"),
+    };
+}
+
+[Description("Books a room and returns the confirmation number")]
+static string BookRoom(
+    RoomType roomType, 
+    string name, 
+    string phoneNumber)
+{
+
+    if (string.IsNullOrWhiteSpace(name))
+    {
+        throw new ArgumentException("Name cannot be null or empty.", nameof(name));
+    }
+
+    if (string.IsNullOrWhiteSpace(phoneNumber))
+    {
+        throw new ArgumentException("Phone number cannot be null or empty.", nameof(phoneNumber));
+    }
+    Console.WriteLine($"Booking room {roomType} for {name} with phone number {phoneNumber}.");
+    return roomType switch
+    {
+        RoomType.ShuttleSimulator => throw new InvalidOperationException("No longer available"),
+        RoomType.NorthAtlantisLawn => "1234",
+        RoomType.VehicleAssemblyBuilding => "9876",
         _ => throw new NotSupportedException($"Unknown room type: {roomType}"),
     };
 }
