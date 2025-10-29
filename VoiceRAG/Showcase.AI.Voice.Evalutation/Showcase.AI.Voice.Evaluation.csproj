@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.AI.ContentSafety" Version="1.0.0" />
+    <PackageReference Include="Azure.Identity" Version="1.13.2" />
+    <PackageReference Include="Microsoft.Extensions.AI.Evaluation.Quality" Version="9.4.3-preview.1.25230.7" />
+    <PackageReference Include="Microsoft.Extensions.AI.Evaluation.Safety" Version="9.4.3-preview.1.25230.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Showcase.AudioOrchestration\Showcase.AI.Voice.csproj" />
+  </ItemGroup>
+
+</Project>

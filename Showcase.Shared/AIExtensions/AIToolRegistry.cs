@@ -9,20 +9,30 @@ public class AIToolRegistry : IAIToolRegistry
 
     private readonly Dictionary<string, AIFunction> _tools;
 
-    public AIToolRegistry() => _tools = new(StringComparer.OrdinalIgnoreCase);
+    //public AIToolRegistry() => _tools = new(StringComparer.OrdinalIgnoreCase);
 
-    public AIToolRegistry(IEnumerable<AIFunction> tools)
+    public AIToolRegistry(IEnumerable<IAIToolHandler> toolHandlers)
     {
-        if (tools is AIToolRegistry existing)
+        _tools = new(StringComparer.OrdinalIgnoreCase);
+        foreach (var handler in toolHandlers)
         {
-            _tools = new(existing._tools, StringComparer.OrdinalIgnoreCase);
-        }
-        else
-        {
-            _tools = new(tools is ICollection<AIFunction> c ? c.Count : 0, StringComparer.OrdinalIgnoreCase);
-            AddRange(tools);
+            var aiTools = handler.GetAITools();
+            AddRange(aiTools);
         }
     }
+
+    //public AIToolRegistry(IEnumerable<AIFunction> tools)
+    //{
+    //    if (tools is AIToolRegistry existing)
+    //    {
+    //        _tools = new(existing._tools, StringComparer.OrdinalIgnoreCase);
+    //    }
+    //    else
+    //    {
+    //        _tools = new(tools is ICollection<AIFunction> c ? c.Count : 0, StringComparer.OrdinalIgnoreCase);
+    //        AddRange(tools);
+    //    }
+    //}
 
     void ICollection<AIFunction>.CopyTo(AIFunction[] array, int arrayIndex) =>
         ((IDictionary<string, AIFunction>)_tools).Values.CopyTo(array, arrayIndex);
@@ -47,7 +57,7 @@ public class AIToolRegistry : IAIToolRegistry
 
     public void Add(AIFunction item)
     {
-        string name = item.Metadata.Name;
+        string name = item.Name;
 
         _tools.Add(name, item);
     }
@@ -68,7 +78,7 @@ public class AIToolRegistry : IAIToolRegistry
     public void CopyTo(AIFunction[] array, int arrayIndex) =>
         ((IDictionary<string, AIFunction>)_tools).Values.CopyTo(array, arrayIndex);
 
-    public bool Remove(AIFunction item) => _tools.Remove(item.Metadata.Name);
+    public bool Remove(AIFunction item) => _tools.Remove(item.Name);
 
     public IEnumerator<AIFunction> GetEnumerator() => _tools.Values.GetEnumerator();
 

@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapr.Actors.AspNetCore" Version="1.15.2" />
+    <PackageReference Include="Dapr.AspNetCore" Version="1.15.2" />
+    <PackageReference Include="Markdig" Version="0.40.0" />
+    <PackageReference Include="Microsoft.SemanticKernel.Process.Core" Version="1.44.0-alpha" />
+    <PackageReference Include="Microsoft.SemanticKernel.Process.Runtime.Dapr" Version="1.44.0-alpha" />
+	  <PackageReference Include="Azure.Communication.CallAutomation" Version="1.5.0-beta.1" />
+	  <PackageReference Include="Azure.Communication.Common" Version="2.0.0-beta.1" />
+	  <PackageReference Include="Azure.Communication.Identity" Version="1.4.0-beta.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Showcase.AudioOrchestration\Showcase.AI.Voice.csproj" />
+  </ItemGroup>
+
+</Project>

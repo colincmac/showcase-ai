@@ -21,14 +21,16 @@ public class OpenTelemetryScope : IDisposable
     private static readonly Histogram<double> _operationDurationHistogram = s_chatMeter.CreateHistogram<double>(
             GenAI.Client.OperationDuration.Name,
             SecondsUnit,
-            GenAI.Client.OperationDuration.Description,
-            advice: new() { HistogramBucketBoundaries = GenAI.Client.OperationDuration.ExplicitBucketBoundaries });
+            GenAI.Client.OperationDuration.Description
+            //advice: new() { HistogramBucketBoundaries = GenAI.Client.OperationDuration.ExplicitBucketBoundaries }
+            );
 
     private static readonly Histogram<int> _tokenUsageHistogram = s_chatMeter.CreateHistogram<int>(
             GenAI.Client.TokenUsage.Name,
             TokensUnit,
-            GenAI.Client.TokenUsage.Description,
-            advice: new() { HistogramBucketBoundaries = GenAI.Client.TokenUsage.ExplicitBucketBoundaries });
+            GenAI.Client.TokenUsage.Description
+            //advice: new() { HistogramBucketBoundaries = GenAI.Client.TokenUsage.ExplicitBucketBoundaries }
+            );
 
     private readonly string _operationName;
     private readonly string _serverAddress;

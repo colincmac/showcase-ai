@@ -1,32 +1,42 @@
 using Azure.AI.OpenAI;
+using Azure.Communication;
 using Azure.Communication.CallAutomation;
 using Azure.Messaging;
 using Azure.Messaging.EventGrid;
 using Azure.Messaging.EventGrid.SystemEvents;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
-using System.ComponentModel.DataAnnotations;
-using Showcase.Shared.AIExtensions.Realtime;
-using Showcase.VoiceRagAgent;
-using OpenAI.RealtimeConversation;
 using Microsoft.Extensions.AI;
-using System.ComponentModel;
-using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.Extensions.Options;
 
+using Newtonsoft.Json;
+using OpenAI.RealtimeConversation;
+using Showcase.AI.Voice;
+using Showcase.AI.Voice.Tools;
+using Showcase.Shared.AIExtensions;
+using Showcase.Shared.AIExtensions.Realtime;
+using Showcase.VoiceRagAgent;
+using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
+
 var builder = WebApplication.CreateBuilder(args);
-//AppContext.SetSwitch("OpenAI.Experimental.EnableOpenTelemetry", true);
+AppContext.SetSwitch("OpenAI.Experimental.EnableOpenTelemetry", true);
 
 builder.AddServiceDefaults();
 
 builder.Services.AddEndpointsApiExplorer();
 
+// From Aspire
 builder.AddAzureOpenAIClient("openai");
 
 builder.Services.Configure<VoiceRagOptions>(
     builder.Configuration.GetSection(VoiceRagOptions.SectionName));
 
-builder.Services.AddSingleton(sp =>
+builder.Services.AddSingleton<IAIToolHandler, ReferenceDataTools>();
+builder.Services.AddSingleton<IAIToolRegistry, AIToolRegistry>();
+
+//var teamsAppId = builder.Configuration.GetValue<string>("TeamsAppId");
+//var teamsAppIdentifier = new MicrosoftTeamsUserIdentifier(teamsAppId);
+builder.Services.AddScoped(sp =>
 {
     var options = sp.GetRequiredService<IOptions<VoiceRagOptions>>().Value;
     return new CallAutomationClient(connectionString: options.AcsConnectionString);
@@ -99,7 +109,7 @@ app.MapPost("/api/incomingCall", async (
                 )
         {
             EnableBidirectional = true,
-            AudioFormat = AudioFormat.Pcm24KMono
+            AudioFormat = AudioFormat.Pcm24KMono,
         };
 
         var options = new AnswerCallOptions(incomingCallContext, callbackUri)
@@ -133,7 +143,7 @@ app.MapPost("/api/callbacks/{contextId}", (
 app.UseWebSockets();
 
 #pragma warning disable OPENAI002
-app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configurationOptions, AzureOpenAIClient openAIClient, ILogger<OpenAIVoiceClient> voiceClientLogger, ILogger<AcsAIOutboundHandler> acsOutboundHandlerLogger) =>
+app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configurationOptions, AzureOpenAIClient openAIClient, IAIToolRegistry toolRegistry, ILoggerFactory loggerFactory) =>
 {
     if (context.WebSockets.IsWebSocketRequest)
     {
@@ -141,17 +151,18 @@ app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configur
         {
             var config = configurationOptions.Value;
 
-            var voiceClient = openAIClient.AsVoiceClient(config.AzureOpenAIDeploymentModelName, voiceClientLogger);
+            //var voiceClient = openAIClient.AsVoiceClient(config.AzureOpenAIDeploymentModelName, voiceClientLogger);
+            var realtimeClient = openAIClient.GetRealtimeConversationClient(config.AzureOpenAIDeploymentModelName);
 
-            IList<AITool> tools = [AIFunctionFactory.Create(GetRoomCapacity)];
+            IList<AITool> tools = [AIFunctionFactory.Create(GetRoomCapacity), AIFunctionFactory.Create(BookRoom)];
 
             RealtimeSessionOptions sessionOptions = new()
             {
                 Instructions = config.AzureOpenAISystemPrompt,
-                Voice = ConversationVoice.Shimmer,
+                Voice = ConversationVoice.Coral,
                 InputAudioFormat = ConversationAudioFormat.Pcm16,
                 OutputAudioFormat = ConversationAudioFormat.Pcm16,
-                Tools = tools,
+                Tools = tools.ToArray(),
                 //InputTranscriptionOptions = new()
                 //{
                 //// OpenAI realtime excepts raw audio in/out and uses another model for transcriptions in parallel
@@ -163,7 +174,8 @@ app.MapGet("/ws", async (HttpContext context, IOptions<VoiceRagOptions> configur
             };
             var webSocket = await context.WebSockets.AcceptWebSocketAsync();
 
-            await voiceClient.StartConversationAsync(new AcsAIOutboundHandler(webSocket, logger: acsOutboundHandlerLogger), sessionOptions, cancellationToken: context.RequestAborted);
+            var conversation = new RealtimeAgentConversation(webSocket, realtimeClient, sessionOptions, loggerFactory);
+            await conversation.StartAsync(context.RequestAborted);
         }
         catch (Exception ex)
         {
@@ -186,6 +198,32 @@ static int GetRoomCapacity(RoomType roomType)
         RoomType.ShuttleSimulator => throw new InvalidOperationException("No longer available"),
         RoomType.NorthAtlantisLawn => 450,
         RoomType.VehicleAssemblyBuilding => 12000,
+        _ => throw new NotSupportedException($"Unknown room type: {roomType}"),
+    };
+}
+
+[Description("Books a room and returns the confirmation number")]
+static string BookRoom(
+    RoomType roomType, 
+    string name, 
+    string phoneNumber)
+{
+
+    if (string.IsNullOrWhiteSpace(name))
+    {
+        throw new ArgumentException("Name cannot be null or empty.", nameof(name));
+    }
+
+    if (string.IsNullOrWhiteSpace(phoneNumber))
+    {
+        throw new ArgumentException("Phone number cannot be null or empty.", nameof(phoneNumber));
+    }
+    Console.WriteLine($"Booking room {roomType} for {name} with phone number {phoneNumber}.");
+    return roomType switch
+    {
+        RoomType.ShuttleSimulator => throw new InvalidOperationException("No longer available"),
+        RoomType.NorthAtlantisLawn => "1234",
+        RoomType.VehicleAssemblyBuilding => "9876",
         _ => throw new NotSupportedException($"Unknown room type: {roomType}"),
     };
 }

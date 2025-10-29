@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System.Buffers;
+using System.Diagnostics;
 using System.Net.WebSockets;
 
 namespace Showcase.Shared.AIExtensions.Realtime;
@@ -12,7 +13,7 @@ public class OutputWebSocketHandler : IOutputWebSocket
     private int _receiveBufferSize;
     private readonly SemaphoreSlim _clientSendSemaphore = new(initialCount: 1, maxCount: 1);
 
-#pragma warning disable OPENAI002
+    #pragma warning disable OPENAI002
     public OutputWebSocketHandler(
         WebSocket webSocket,
         int? receiveBufferSize,

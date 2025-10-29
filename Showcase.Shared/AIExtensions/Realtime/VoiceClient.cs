@@ -8,6 +8,7 @@ using System;
 using System.Buffers;
 using System.ClientModel.Primitives;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO;
 using System.Net.WebSockets;
 using System.Reflection;
@@ -27,6 +28,8 @@ public class OpenAIVoiceClient : IVoiceClient
 
     private readonly ConcurrentDictionary<Type, List<Func<IOutputWebSocket, ConversationUpdate, Task>>> _eventHandlers
         = new ();
+
+    private readonly List<ConversationUpdate> _conversationTranscriptionHistory = new();
 
     private static readonly Uri _defaultOpenAIEndpoint = new("https://api.openai.com/v1");
 
@@ -84,13 +87,12 @@ public class OpenAIVoiceClient : IVoiceClient
     {
         CancellationTokenSource cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
         var aiSession = await _aiClient.StartConversationSessionAsync(cancellationToken).ConfigureAwait(false);
-
         // Add default handlers for ConversationUpdate types
         OnConversationUpdate<ConversationResponseFinishedUpdate>((_, update) => OnConversationResponseFinishedUpdate(output, update));
 
         var options = ToOpenAIConversationSessionOptions(sessionOptions);
         await aiSession.ConfigureSessionAsync(options, cancellationToken).ConfigureAwait(false);
-
+        //aiSession.AddItemAsync(ConversationItem.CreateAssistantMessage([ConversationContentPart.Create]))
         // Start the background audio processing for the input channel
         var processAudioTask = Task.Run(async () => await ProcessInboundAudioChannelAsync(aiSession, cancellationToken).ConfigureAwait(false), cancellationToken);
 
@@ -121,6 +123,15 @@ public class OpenAIVoiceClient : IVoiceClient
         }
     }
 
+
+    /**
+     * TODO
+     * - Check if we need to implement Truncate during interrupt so that the audio transcript represents what the user heard, if voice detect is not turned on https://platform.openai.com/docs/api-reference/realtime-client-events/conversation/item/truncate
+     * - Add Moderation https://platform.openai.com/docs/guides/realtime#moderation
+     * - Add Evals
+     * - Continue conversation https://platform.openai.com/docs/guides/realtime#continuing-conversations
+     * - Handle long conversations (15 minute websocket connection) https://platform.openai.com/docs/guides/realtime#handling-long-conversations
+     */
     private async Task GetOpenAiStreamResponseAsync(RealtimeConversationSession session, IOutputWebSocket mediaStreamingHandler, IList<AITool> tools, CancellationToken cancellationToken = default)
     {
         try
@@ -157,6 +168,26 @@ public class OpenAIVoiceClient : IVoiceClient
                     _logger.LogDebug("Delta Function Args: {FunctionArguments}", deltaUpdate.FunctionArguments);
                     if (deltaUpdate.AudioBytes is not null)
                         await mediaStreamingHandler.SendInputAudioAsync(deltaUpdate.AudioBytes.ToArray(), cancellationToken).ConfigureAwait(false);
+                    if(deltaUpdate.AudioTranscript is not null)
+                        continue; // Need to store the transcript to rehydrate the 
+                }
+
+                
+                if (update is ConversationItemStreamingAudioTranscriptionFinishedUpdate transcriptionFinished)
+                {
+
+                    // {
+                    //  "event_id": "event_2122",
+                    //  "type": "conversation.item.input_audio_transcription.completed",
+                    //  "item_id": "msg_003",
+                    //  "content_index": 0,
+                    //  "transcript": "Hello, how are you?"
+                    // }
+                    _conversationTranscriptionHistory.Add(transcriptionFinished);
+                }
+                if (update is ConversationInputTranscriptionFinishedUpdate inputTranscriptionFinished)
+                {
+                    _conversationTranscriptionHistory.Add(inputTranscriptionFinished);
                 }
 
                 if (update is ConversationInputSpeechStartedUpdate speechStartedUpdate)
@@ -177,6 +208,8 @@ public class OpenAIVoiceClient : IVoiceClient
             _logger.LogError(ex, "Exception during AI streaming.");
         }
     }
+
+
 
 
     private async Task ProcessInboundAudioChannelAsync(RealtimeConversationSession session, CancellationToken cancellationToken)
@@ -223,6 +256,12 @@ public class OpenAIVoiceClient : IVoiceClient
         return result;
     }
 
+    private Task RenewConnection(CancellationToken cancellationToken)
+    {
+       
+        return Task.CompletedTask;
+    }
+
     // Default Handlers
 
     // Conversation response is done. Always emitted, no matter the final state
@@ -230,6 +269,9 @@ public class OpenAIVoiceClient : IVoiceClient
     {
         return Task.CompletedTask;
     }
+
+
+
 
     public async ValueTask DisposeAsync()
     {

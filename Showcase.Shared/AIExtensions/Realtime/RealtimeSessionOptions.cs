@@ -12,6 +12,10 @@ namespace Showcase.Shared.AIExtensions.Realtime;
 #pragma warning disable OPENAI002
 public class RealtimeSessionOptions
 {
+    public const string ConfigurationSection = "RealtimeSessionOptions";
+    public string? AgentName { get; set; }
+    public string? ModelId { get; set; }
+
     public string? Instructions { get; set; }
     public ConversationVoice? Voice { get; set; }
     public ConversationAudioFormat? InputAudioFormat { get; set; }
